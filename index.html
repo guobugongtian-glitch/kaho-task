@@ -165,6 +165,20 @@ a{color:inherit}
 .warn.on{display:block}
 
 /* videos */
+.persona summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:15px}
+.persona summary::-webkit-details-marker{display:none}
+.persona summary small{font-size:12px;color:var(--sub);font-weight:800}
+.persona[open] summary small{display:none}
+.pme{background:linear-gradient(150deg,#efeaff,#fff1ea);border-radius:16px;padding:12px;margin-top:12px}
+.pme b{font-size:15px;font-weight:900}
+.pme ul,.pv ul,.prules{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.6;font-weight:700}
+.pv{border:2px solid var(--line);border-radius:16px;padding:12px;margin-top:10px}
+.pv .h{display:flex;gap:10px;align-items:center}
+.pv .e{font-size:26px;width:44px;height:44px;border-radius:14px;background:var(--soft);display:grid;place-items:center;flex:none}
+.pv .h b{display:block;font-size:15px;font-weight:900}
+.pv .h small{font-size:12px;color:var(--sub);font-weight:800}
+.pv .ex{margin-top:8px;background:var(--sun2);border-radius:12px;padding:8px 10px;font-size:13px;font-weight:800}
+.pnote{font-size:11.5px;color:var(--sub);font-weight:700;margin-top:10px}
 .stages{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px}
 .stg{background:#fff;border-radius:16px;padding:9px 2px;text-align:center;font-size:11px;font-weight:800;color:var(--sub);box-shadow:var(--sh);cursor:pointer;border:2px solid transparent}
 .stg b{display:block;font-size:20px;color:var(--ink)}
@@ -484,6 +498,7 @@ a{color:inherit}
 <!-- ===== 動画 ===== -->
 <section id="pVideos" style="display:none">
   <div class="ptitle">動画企画<small>ネタ → 投稿まで</small></div>
+  <div id="persona"></div>
   <div class="stages" id="stages"></div>
   <div id="vlist"></div>
 </section>
@@ -1192,7 +1207,14 @@ document.addEventListener("click",async e=>{const cp=e.target.closest("[data-cpt
   const b=e.target.closest("[data-cidea]");if(!b||!latestReport)return;const i=+b.dataset.cidea,c=(latestReport.comp||[])[i];if(!c)return;
   const v={id:newId("v"),title:c.ideaTitle||c.idea.slice(0,40),plat:c.myPlat||"tk",stage:"idea",date:"",hook:c.hook||"",script:"",shots:"",caption:"",why:`参考：${c.who||""}「${c.what||""}」${c.num?"（"+c.num+"）":""} — ${c.why||""}`,src:"comp:"+(latestReport.date||"")+":"+i,created:Date.now()};
   b.disabled=true;b.textContent="✓ 動画企画に追加済み";try{await putV(v);toast("動画企画に追加しました🎬")}catch(err){toast("追加できませんでした")}});
-function startReport(){if(local||!db)return;db.doc("reports/latest").onSnapshot(d=>{if(d.exists)renderReport(d.data())},()=>{})}
+function renderPersona(p){if(!p){$("persona").innerHTML="";return}
+  const ul=a=>(a&&a.length)?`<ul>${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:"";
+  $("persona").innerHTML=`<details class="card persona"><summary><span>🎯 ペルソナ（誰に向けて作る？）</span><small>タップで開く</small></summary>
+  <div class="pme"><b>🙋‍♀️ ${esc(p.me.title)}</b>${ul(p.me.lines)}</div>
+  ${(p.viewers||[]).map(v=>`<div class="pv"><div class="h"><span class="e">${esc(v.emoji)}</span><div><b>${esc(v.name)}</b><small>${esc(v.who)}</small></div></div>${ul(["見たいもの："+v.wants,"刺さる1行目："+v.hook,"出す場所："+v.where])}${v.ex?`<div class="ex">📈 当たった例：${esc(v.ex)}</div>`:""}</div>`).join("")}
+  ${p.rules&&p.rules.length?`<div class="ah" style="margin:14px 0 4px;font-size:14px">✅ 撮る前のチェック</div><ol class="prules">${p.rules.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:""}
+  ${p.note?`<div class="pnote">${esc(p.note)}</div>`:""}</details>`}
+function startReport(){if(local||!db)return;db.doc("notes/persona").onSnapshot(d=>renderPersona(d.exists?d.data():null),()=>{});db.doc("reports/latest").onSnapshot(d=>{if(d.exists)renderReport(d.data())},()=>{})}
 function startVideos(){startReport();
   if(local||!db){try{videos=JSON.parse(localStorage.getItem("kahoVideosLocal"))||[]}catch(e){videos=[]}renderV();return}
   vcol=db.collection("videos");
