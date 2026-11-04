@@ -178,6 +178,14 @@ a{color:inherit}
 .dly .e{font-size:24px;width:42px;height:42px;border-radius:13px;background:var(--soft);display:grid;place-items:center;flex:none}
 .dly b{display:block;font-size:13.5px;font-weight:900}.dly small{font-size:11.5px;color:var(--sub);font-weight:800}
 .dly.on{background:var(--mint2)}.dly.on .e{background:#fff}
+.sscard{background:linear-gradient(150deg,#fff4e8,#ffe9f0)}
+.sscard h3{margin:0 0 6px;font-size:15px;font-weight:900;display:flex;justify-content:space-between}
+.sscard h3 small{font-size:12px;color:var(--sub)}
+.sscard .en{background:#fff;border-radius:14px;padding:12px;font-size:15px;line-height:1.65;white-space:pre-wrap;font-weight:600}
+.sscard .ja{font-size:12.5px;color:#6b6070;line-height:1.6;margin-top:8px;white-space:pre-wrap;font-weight:700}
+.sscard .ph{font-size:12.5px;font-weight:800;margin-top:8px}
+.sscard .row{display:flex;gap:8px;margin-top:10px}.sscard .row a,.sscard .row button{flex:1;text-align:center;border-radius:14px;padding:11px;font-weight:900;font-size:13px;text-decoration:none}
+.sscard .row button{background:var(--ink);color:#fff}.sscard .row a{background:#fff;color:#ff6719}
 .persona summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:15px}
 .persona summary::-webkit-details-marker{display:none}
 .persona summary small{font-size:12px;color:var(--sub);font-weight:800}
@@ -528,7 +536,7 @@ a{color:inherit}
 <section id="pVideos" style="display:none">
   <div class="ptitle">SNS<small>分析 → ネタ → 投稿</small></div>
   <div class="seg" id="vseg"><button data-vsub="ana">📈 今日の分析</button><button data-vsub="plan">🎬 企画</button></div>
-  <div id="vAna"><div id="report"><div class="mine">毎朝AIが分析した結果がここに出ます。</div></div></div>
+  <div id="vAna"><div id="ssBox"></div><div id="report"><div class="mine">毎朝AIが分析した結果がここに出ます。</div></div></div>
   <div id="vPlan" style="display:none">
   <div id="persona"></div>
   <div class="stages" id="stages"></div>
@@ -1053,7 +1061,7 @@ const DAILY=[{k:"substack",e:"✍️",l:"Substack",u:"https://substack.com/"},{k
 function dailyIdx(k){return goalItems().findIndex(g=>g.daily===k)}
 function renderDaily(){const td=today();const items=DAILY.filter(d=>dailyIdx(d.k)>=0);if(!$("dailyBox"))return;
   $("dailyBox").innerHTML=items.length?`<div class="sec"><h2>📝 毎日の更新</h2><small>押すと今日の分にチェック</small></div><div class="daily">${items.map(d=>{const g=goalItems()[dailyIdx(d.k)],on=!!(g.log&&g.log[td]);
-    return `<button class="dly ${on?"on":""}" data-daily="${d.k}"><span class="e">${on?"✅":d.e}</span><span><b>${d.l}</b><small>${on?"今日はできた！":"今週 "+curOf(g)+"/"+g.target}</small></span></button>`}).join("")}</div>`:""}
+    return `<button class="dly ${on?"on":""}" data-daily="${d.k}"><span class="e">${on?"✅":d.e}</span><span><b>${d.l}</b><small>${on?"今日はできた！":(d.k==="substack"&&ssDraft&&ssDraft.day===today()?"下書きあり → SNSタブ":(d.k==="blog"&&ssDraft&&ssDraft.blogDay===today()?"今日の記事は自動で出ました":"今週 "+curOf(g)+"/"+g.target))}</small></span></button>`}).join("")}</div>`:""}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-daily]");if(!b)return;const i=dailyIdx(b.dataset.daily);if(i<0)return;const g=goalItems()[i],td=today();
   if(g.log&&g.log[td]){const it=goalItems().map(x=>({...x}));const lg={...(it[i].log||{})};delete lg[td];it[i].log=lg;saveGoals(it);toast("今日のチェックを外しました");return}
   bumpGoal(i,true);cheer(`${DAILY.find(d=>d.k===b.dataset.daily).l} 更新！`,"毎日つづけるのがいちばん強い");confetti(24)});
@@ -1277,7 +1285,12 @@ function renderPersona(p){if(!p){$("persona").innerHTML="";return}
   ${(p.viewers||[]).map(v=>`<div class="pv"><div class="h"><span class="e">${esc(v.emoji)}</span><div><b>${esc(v.name)}</b><small>${esc(v.who)}</small></div></div>${ul(["見たいもの："+v.wants,"刺さる1行目："+v.hook,"出す場所："+v.where].concat(v.ibaraki?["🌸 茨城の見せ方："+v.ibaraki]:[]))}${v.ex?`<div class="ex">📈 当たった例：${esc(v.ex)}</div>`:""}</div>`).join("")}
   ${p.rules&&p.rules.length?`<div class="ah" style="margin:14px 0 4px;font-size:14px">✅ 撮る前のチェック</div><ol class="prules">${p.rules.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:""}
   ${p.note?`<div class="pnote">${esc(p.note)}</div>`:""}</details>`}
-function startReport(){if(local||!db)return;db.doc("notes/persona").onSnapshot(d=>renderPersona(d.exists?d.data():null),()=>{});db.doc("reports/latest").onSnapshot(d=>{if(d.exists)renderReport(d.data())},()=>{})}
+let ssDraft=null;
+function renderSubstack(){const d=ssDraft;const box=$("ssBox");if(!box)return;if(!d||!d.en){box.innerHTML="";return}
+  box.innerHTML=`<div class="card sscard"><h3><span>✍️ 今日のSubstack（下書き）</span><small>${esc(d.date||"")}</small></h3><div class="en">${esc(d.en)}</div>${d.photo?`<div class="ph">📷 写真：${esc(d.photo)}</div>`:""}${d.ja?`<details><summary style="font-size:12px;font-weight:800;color:var(--sub);margin-top:8px;cursor:pointer">日本語訳を見る</summary><div class="ja">${esc(d.ja)}</div></details>`:""}
+  <div class="row"><button data-sscopy>英語をコピー</button><a href="https://substack.com/notes" target="_blank" rel="noopener">Substackを開く</a></div></div>`}
+document.addEventListener("click",async e=>{if(!e.target.closest("[data-sscopy]")||!ssDraft)return;try{await navigator.clipboard.writeText(ssDraft.en);toast("コピーしました。Substackに貼ってね")}catch(err){toast("長押しでコピーしてね")}});
+function startReport(){if(local||!db)return;db.doc("reports/substack-latest").onSnapshot(d=>{ssDraft=d.exists?d.data():null;renderSubstack();renderDaily()},()=>{});db.doc("notes/persona").onSnapshot(d=>renderPersona(d.exists?d.data():null),()=>{});db.doc("reports/latest").onSnapshot(d=>{if(d.exists)renderReport(d.data())},()=>{})}
 function startVideos(){startReport();
   if(local||!db){try{videos=JSON.parse(localStorage.getItem("kahoVideosLocal"))||[]}catch(e){videos=[]}renderV();return}
   vcol=db.collection("videos");
