@@ -192,6 +192,9 @@ a{color:inherit}
 .pflow div{background:#fff;border-radius:12px;padding:8px 4px;text-align:center;font-size:11.5px;font-weight:800;line-height:1.4}
 .pflow div i{display:block;font-style:normal;font-size:18px}
 .pnote{font-size:11.5px;color:var(--sub);font-weight:700;margin-top:10px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#fff;border-radius:16px;padding:4px;box-shadow:var(--sh);margin-bottom:14px}
+.seg button{border-radius:12px;padding:10px;font-weight:900;font-size:14px;color:#8b909c}
+.seg button.on{background:var(--ink);color:#fff}
 .stages{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px}
 .stg{background:#fff;border-radius:16px;padding:9px 2px;text-align:center;font-size:11px;font-weight:800;color:var(--sub);box-shadow:var(--sh);cursor:pointer;border:2px solid transparent}
 .stg b{display:block;font-size:20px;color:var(--ink)}
@@ -517,17 +520,18 @@ a{color:inherit}
 
 <!-- ===== 動画 ===== -->
 <section id="pVideos" style="display:none">
-  <div class="ptitle">動画企画<small>ネタ → 投稿まで</small></div>
+  <div class="ptitle">動画<small>分析 → ネタ → 投稿</small></div>
+  <div class="seg" id="vseg"><button data-vsub="ana">📈 今日の分析</button><button data-vsub="plan">🎬 企画</button></div>
+  <div id="vAna"><div id="report"><div class="mine">毎朝AIが分析した結果がここに出ます。</div></div></div>
+  <div id="vPlan" style="display:none">
   <div id="persona"></div>
   <div class="stages" id="stages"></div>
   <div id="vlist"></div>
+  </div>
 </section>
 
 <!-- ===== 分析 ===== -->
-<section id="pAna" style="display:none">
-  <div class="ptitle">今日の分析</div>
-  <div id="report"><div class="mine">毎朝AIが分析した結果がここに出ます。</div></div>
-</section>
+
 
 <!-- ===== 道のり ===== -->
 <section id="pRoad" style="display:none">
@@ -560,7 +564,6 @@ a{color:inherit}
   <button data-tab="today" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg>今日</button>
   <button data-tab="tasks"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/></svg>タスク</button>
   <button data-tab="videos"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="3"/><path d="M16 10.5l5-3v9l-5-3z"/></svg>動画</button>
-  <button data-tab="analysis"><svg viewBox="0 0 24 24"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>分析</button>
   <button data-tab="road"><svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h11l-2.2 4L16 12H5"/></svg>道のり</button>
   <button data-tab="me"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>きろく</button>
 </nav>
@@ -1441,19 +1444,22 @@ $("moveGo").onclick=async()=>{let j;try{j=JSON.parse($("moveTxt").value)}catch(e
 $("logout").onclick=async()=>{await kb.auth.signOut();location.reload()};
 
 /* ---------- tabs (hash routing) ---------- */
-const TABS={today:"pToday",tasks:"pTasks",videos:"pVideos",analysis:"pAna",road:"pRoad",me:"pMe"};
+const TABS={today:"pToday",tasks:"pTasks",videos:"pVideos",road:"pRoad",me:"pMe"};
+let vsub="ana";
+function showVsub(k){vsub=k;$("vAna").style.display=k==="ana"?"":"none";$("vPlan").style.display=k==="plan"?"":"none";document.querySelectorAll("#vseg [data-vsub]").forEach(b=>b.classList.toggle("on",b.dataset.vsub===k));$("add").style.display=(tab==="videos"&&k==="ana")?"none":$("add").style.display;if(k==="ana")markAna();else renderV();if(tab==="videos")$("add").style.display=k==="plan"?"":"none"}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-vsub]");if(b)showVsub(b.dataset.vsub)});
 function markAna(){const i=goalItems().findIndex(g=>g.auto==="ana");if(i>=0)bumpGoal(i,true)}
-function showTab(k,noHash){if(!TABS[k])k="today";tab=k;
+function showTab(k,noHash){if(k==="analysis"){k="videos";vsub="ana"}if(k==="plan"){k="videos";vsub="plan"}if(!TABS[k])k="today";tab=k;
   for(const [x,p] of Object.entries(TABS))$(p).style.display=x===k?"":"none";
   document.querySelectorAll("#nav [data-tab]").forEach(b=>b.classList.toggle("on",b.dataset.tab===k));
-  $("add").style.display=(k==="analysis"||k==="me")?"none":"";$("add").setAttribute("aria-label",k==="videos"?"動画のアイデアを追加":k==="road"?"目標を追加":"タスクを追加");if(k==="road")renderRoad();
-  if(k==="videos")renderV();if(k==="analysis")markAna();if(k==="tasks")renderTasks();if(k==="me"){renderMe();renderGoals()}
+  $("add").style.display=(k==="me")?"none":"";$("add").setAttribute("aria-label",k==="videos"?"動画のアイデアを追加":k==="road"?"目標を追加":"タスクを追加");if(k==="road")renderRoad();
+  if(k==="videos")showVsub(vsub);if(k==="tasks")renderTasks();if(k==="me"){renderMe();renderGoals()}
   if(!noHash&&location.hash!=="#"+k){try{history.replaceState(null,"","#"+k)}catch(e){location.hash=k}}
   window.scrollTo({top:0});
 }
 $("nav").onclick=e=>{const b=e.target.closest("[data-tab]");if(b)showTab(b.dataset.tab)};
 $("add").onclick=()=>{if(tab==="videos")openV();else if(tab==="road")openR();else openSheet()};
-$("teaser").onclick=()=>showTab("analysis");
+$("teaser").onclick=()=>{vsub="ana";showTab("videos")};
 window.addEventListener("hashchange",()=>showTab(location.hash.slice(1),true));
 render.lastDay=today();setInterval(()=>{if(render.lastDay!==today()){render.lastDay=today();selDay=today();wOff=0;render()}},60000);
 
