@@ -622,6 +622,17 @@ a{color:inherit}
   <button class="pastebtn" id="pasteSteps">📋 コピーした歩数を貼り付け</button>
   <input id="stepIn" type="number" inputmode="numeric" min="0" placeholder="0">
   <div class="qsteps"><button data-a="1000">+1000</button><button data-a="3000">+3000</button><button data-a="5000">+5000</button><button data-a="0">0にする</button></div>
+  <details style="margin-top:14px"><summary style="font-weight:900;font-size:13px;cursor:pointer">📲 iPhoneから毎晩自動で入れる（ショートカット）</summary>
+  <ol style="font-size:13px;line-height:1.7;font-weight:700;padding-left:20px;margin:8px 0">
+   <li>「ショートカット」アプリ →「＋」で新しいショートカット</li>
+   <li>「ヘルスケアのサンプルを検索」を足す → 種類「歩数」、開始日「今日」</li>
+   <li>「統計を計算」を足す →「合計」</li>
+   <li>「URL」を足して、下のURLを貼り、最後に「合計」を差し込む</li>
+   <li>「URLを開く」を足す</li>
+   <li>「オートメーション」→「時刻」毎日21:30 →「すぐに実行」→ このショートカット</li>
+  </ol>
+  <div style="display:flex;gap:6px"><input id="stepUrl" readonly style="font-size:12px"><button class="copy" id="stepUrlCopy" style="flex:none">コピー</button></div>
+  <p class="hint" style="font-size:12px;margin-top:6px">※ 開くのはSafariなので、Safariでもこのアプリに一度ログインしておいてね</p></details>
   <div class="goalrow">1日の目標 <input id="goalIn" type="number" inputmode="numeric" min="1000" step="500"> 歩</div>
   <div class="btns"><button class="btn dark" id="stepOk">保存</button></div>
 </div></div>
@@ -958,14 +969,17 @@ function renderBody(){
 function openBg(id){const sh=$(id).querySelector(".sheet");if(sh)sh.scrollTop=0;$(id).classList.add("on")}
 function closeBg(id){$(id).classList.remove("on")}
 $("gymBtn").onclick=()=>{const td=today(),on=!hOf(td).gym;putH(td,{gym:on});if(on){cheer("ジムおつかれ💪","+20XP");confetti(30)}};
-$("stepsBox").onclick=()=>{$("stepIn").value=hOf(today()).steps||"";$("goalIn").value=stepGoal;openBg("stepSheet");setTimeout(()=>$("stepIn").focus(),80)};
+$("stepsBox").onclick=()=>{$("stepUrl").value=location.origin+location.pathname+"?steps=";$("stepIn").value=hOf(today()).steps||"";$("goalIn").value=stepGoal;openBg("stepSheet");setTimeout(()=>$("stepIn").focus(),80)};
 document.querySelectorAll(".qsteps button").forEach(b=>b.onclick=()=>{const a=+b.dataset.a;$("stepIn").value=a?(+$("stepIn").value||0)+a:0});
+$("stepUrlCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("stepUrl").value);toast("コピーしました")}catch(e){$("stepUrl").select();toast("長押しでコピーしてね")}};
 $("stepOk").onclick=()=>{const g=Math.max(1000,+$("goalIn").value||8000);if(g!==stepGoal){stepGoal=g;try{localStorage.setItem("kahoStepGoal",g)}catch(e){}}
   const before=hOf(today()).steps||0,n=Math.max(0,Math.round(+$("stepIn").value||0));closeBg("stepSheet");
   putH(today(),{steps:n});if(n>=stepGoal&&before<stepGoal){cheer("歩数目標達成！","+10XP 🎉");confetti(30)}else toast("保存しました")};
 $("pasteSteps").onclick=async()=>{try{const t=await navigator.clipboard.readText();const n=parseInt(String(t).replace(/[^0-9]/g,""),10);if(isNaN(n))throw 0;$("stepIn").value=n;toast(`${n.toLocaleString()}歩を入れました`)}catch(e){$("stepIn").focus();toast("入力欄を長押しして「ペースト」してね")}};
-function stepsFromUrl(){try{const q=new URLSearchParams(location.search);const n=parseInt(q.get("steps"),10);if(!isNaN(n)&&n>=0){putH(today(),{steps:n});toast(`iPhoneから ${n.toLocaleString()}歩 を記録しました`)}}catch(e){}}
-function startHealth(){setTimeout(stepsFromUrl,1500);
+function stepsFromUrl(){try{const q=new URLSearchParams(location.search);const raw=q.get("steps");if(raw==null)return;const n=Math.round(parseFloat(String(raw).replace(/[^0-9.]/g,"")));
+  try{history.replaceState(null,"",location.pathname+location.hash)}catch(e){}
+  if(!isNaN(n)&&n>=0&&n<200000){const before=hOf(today()).steps||0;putH(today(),{steps:n});cheer(`🚶‍♀️ ${n.toLocaleString()}歩`,"iPhoneから入れました");if(n>=stepGoal&&before<stepGoal)confetti(30)}}catch(e){}}
+function startHealth(){setTimeout(stepsFromUrl,2500);
   if(local||!db){try{health=JSON.parse(localStorage.getItem(HKEY))||{}}catch(e){health={}}render();return}
   hcol=db.collection("health");
   hcol.onSnapshot(snap=>{health={};snap.docs.forEach(d=>health[d.id]=d.data());render()},()=>{});
