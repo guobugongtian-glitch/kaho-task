@@ -666,6 +666,8 @@ a{color:inherit}
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastB" style="display:none"></button></div>
 
 <script>
+// iPhoneのショートカットから ?steps= で来たとき、ログインや読み込みより先に覚えておく
+const PENDING_STEPS=(()=>{try{const raw=new URLSearchParams(location.search).get("steps");if(raw==null)return null;history.replaceState(null,"",location.pathname+location.hash);return raw}catch(e){return null}})();
 const CATS=[
  {k:"sns",l:"YouTube・SNS",e:"📱",c:"#ff8a65",b:"#ffe9e1"},
  {k:"app",l:"アプリ・ブログ",e:"🗾",c:"#4f8ff7",b:"#e3eeff"},
@@ -976,10 +978,15 @@ $("stepOk").onclick=()=>{const g=Math.max(1000,+$("goalIn").value||8000);if(g!==
   const before=hOf(today()).steps||0,n=Math.max(0,Math.round(+$("stepIn").value||0));closeBg("stepSheet");
   putH(today(),{steps:n});if(n>=stepGoal&&before<stepGoal){cheer("歩数目標達成！","+10XP 🎉");confetti(30)}else toast("保存しました")};
 $("pasteSteps").onclick=async()=>{try{const t=await navigator.clipboard.readText();const n=parseInt(String(t).replace(/[^0-9]/g,""),10);if(isNaN(n))throw 0;$("stepIn").value=n;toast(`${n.toLocaleString()}歩を入れました`)}catch(e){$("stepIn").focus();toast("入力欄を長押しして「ペースト」してね")}};
-function stepsFromUrl(){try{const q=new URLSearchParams(location.search);const raw=q.get("steps");if(raw==null)return;const n=Math.round(parseFloat(String(raw).replace(/[^0-9.]/g,"")));
-  try{history.replaceState(null,"",location.pathname+location.hash)}catch(e){}
-  if(!isNaN(n)&&n>=0&&n<200000){const before=hOf(today()).steps||0;putH(today(),{steps:n});cheer(`🚶‍♀️ ${n.toLocaleString()}歩`,"iPhoneから入れました");if(n>=stepGoal&&before<stepGoal)confetti(30)}}catch(e){}}
-function startHealth(){setTimeout(stepsFromUrl,2500);
+async function stepsFromUrl(){if(PENDING_STEPS==null)return;const raw=String(PENDING_STEPS);
+  const n=Math.round(parseFloat(raw.replace(/[,，\s]/g,"").replace(/[^0-9.]/g,"")));
+  if(isNaN(n)||n<0||n>=200000){toast(`歩数が読めませんでした（届いた中身：「${raw.slice(0,30)||"空っぽ"}」）`);return}
+  if(!hcol&&!local){toast("まだ保存先につながっていません。もう一度ショートカットを動かしてね");return}
+  const before=hOf(today()).steps||0,v={...hOf(today()),steps:n};health[today()]=v;render();
+  try{if(local||!hcol)localStorage.setItem(HKEY,JSON.stringify(health));else await hcol.doc(today()).set(v);
+    cheer(`🚶‍♀️ ${n.toLocaleString()}歩`,"iPhoneから入れました");if(n>=stepGoal&&before<stepGoal)confetti(30)}
+  catch(e){toast("歩数を保存できませんでした："+(e.message||""))}}
+function startHealth(){setTimeout(()=>{stepsFromUrl()},1200);
   if(local||!db){try{health=JSON.parse(localStorage.getItem(HKEY))||{}}catch(e){health={}}render();return}
   hcol=db.collection("health");
   hcol.onSnapshot(snap=>{health={};snap.docs.forEach(d=>health[d.id]=d.data());render()},()=>{});
