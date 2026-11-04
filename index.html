@@ -1022,7 +1022,7 @@ async function loadWatch(){try{const {data:ts}=await sb.auth.getSession();if(!ts
   const {data:mc}=await sb.from('monthly_costs').select('kind,amount_jpy').eq('ym',ym.replace('-',''));(mc||[]).forEach(c=>{if(CASH_FEES.includes(c.kind))p+=c.amount_jpy||0});
   let stock=null;try{const it=await allRows(()=>sb.from('items').select('status').neq('status','sold').order('kno'));stock=it.length}catch(e){}
   watchLive={ym,sales:s,profit:p,sold:os.length,stock};renderGoals();renderRoad()}catch(e){watchLive=null}}
-function liveOf(g){if(!watchLive||watchLive.ym!==monthKey()||!/時計/.test(g.label||""))return null;if(/売上/.test(g.label))return watchLive.sales;if(/利益/.test(g.label))return watchLive.profit;return null}
+function liveOf(g){if(!watchLive||watchLive.ym!==monthKey()||!/時計/.test(g.label||""))return null;if(/売上/.test(g.label))return watchLive.sales;if(/利益/.test(g.label))return watchLive.profit;if(/本数|売れた/.test(g.label))return watchLive.sold;if(/在庫/.test(g.label)&&watchLive.stock!=null)return watchLive.stock;return null}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&db)loadWatch()});
 
 /* ---------- monthly goals ---------- */
