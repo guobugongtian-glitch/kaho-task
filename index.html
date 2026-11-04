@@ -1020,7 +1020,8 @@ async function loadWatch(){try{const {data:ts}=await sb.auth.getSession();if(!ts
   const os=await allRows(()=>sb.from('orders').select('platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
   let s=0,p=0;os.forEach(o=>{const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);s+=x;p+=x-((o.items&&o.items.cost_jpy)||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)});
   const {data:mc}=await sb.from('monthly_costs').select('kind,amount_jpy').eq('ym',ym.replace('-',''));(mc||[]).forEach(c=>{if(CASH_FEES.includes(c.kind))p+=c.amount_jpy||0});
-  watchLive={ym,sales:s,profit:p,sold:os.length};renderGoals();renderRoad()}catch(e){watchLive=null}}
+  let stock=null;try{const it=await allRows(()=>sb.from('items').select('status').neq('status','sold').order('kno'));stock=it.length}catch(e){}
+  watchLive={ym,sales:s,profit:p,sold:os.length,stock};renderGoals();renderRoad()}catch(e){watchLive=null}}
 function liveOf(g){if(!watchLive||watchLive.ym!==monthKey()||!/時計/.test(g.label||""))return null;if(/売上/.test(g.label))return watchLive.sales;if(/利益/.test(g.label))return watchLive.profit;return null}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&db)loadWatch()});
 
@@ -1275,10 +1276,11 @@ function rNum(m){const n=m.num;if(!n||!(+n.goal))return null;let cur=n.cur;
   if(n.src==="yt"){const r=repTile(/YouTube登録者/);if(r!=null)cur=r}
   if(n.src==="watch_sales"&&watchLive&&watchLive.ym===monthKey())cur=watchLive.sales;
   if(n.src==="watch_profit"&&watchLive&&watchLive.ym===monthKey())cur=watchLive.profit;
-  return {cur:(cur===""||cur==null)?null:+cur,goal:+n.goal,unit:n.unit||"",auto:!!n.src}}
+  if(n.src==="watch_stock"&&watchLive&&watchLive.stock!=null)cur=watchLive.stock;
+  return {cur:(cur===""||cur==null)?null:+cur,goal:+n.goal,unit:n.unit||"",auto:!!n.src,down:!!n.down,start:+n.start||0}}
 const fmtBig=(v,u)=>v==null?"?":(u==="円"&&v>=10000?(Math.round(v/1000)/10).toLocaleString()+"万":(+v).toLocaleString());
-function numText(m){const x=rNum(m);return x?`${fmtBig(x.cur,x.unit)} / ${fmtBig(x.goal,x.unit)}${esc(x.unit)}${x.auto?" 🔄":""}`:""}
-function rProg(m){if(m.done)return 100;const x=rNum(m);if(x)return x.cur==null?0:Math.max(0,Math.min(100,Math.round(x.cur/x.goal*100)));const s=m.steps||[];return s.length?Math.round(s.filter(x=>x.done).length/s.length*100):0}
+function numText(m){const x=rNum(m);if(!x)return "";return x.down?`いま ${fmtBig(x.cur,x.unit)}${esc(x.unit)} → ${fmtBig(x.goal,x.unit)}${esc(x.unit)}まで減らす${x.auto?" 🔄":""}`:`${fmtBig(x.cur,x.unit)} / ${fmtBig(x.goal,x.unit)}${esc(x.unit)}${x.auto?" 🔄":""}`}
+function rProg(m){if(m.done)return 100;const x=rNum(m);if(x){if(x.cur==null)return 0;if(x.down)return x.start>x.goal?Math.max(0,Math.min(100,Math.round((x.start-x.cur)/(x.start-x.goal)*100))):(x.cur<=x.goal?100:0);return Math.max(0,Math.min(100,Math.round(x.cur/x.goal*100)))}const s=m.steps||[];return s.length?Math.round(s.filter(x=>x.done).length/s.length*100):0}
 async function putR(m){
   if(local||!rcol){const i=road.findIndex(x=>x.id===m.id);if(i>=0)road[i]=m;else road.push(m);try{localStorage.setItem(RKEY,JSON.stringify(road))}catch(e){}renderRoad();return}
   const {id,...b}=m;await rcol.doc(id).set(b)}
@@ -1319,7 +1321,7 @@ async function syncRoadFromTask(t,done){if(!t.rm)return;const m=road.find(x=>x.i
 function afterStep(m){if(!m.done&&(m.steps||[]).length&&m.steps.every(x=>x.done))setTimeout(()=>toast(`「${m.title}」のステップぜんぶ完了！`,{label:"🏁 達成にする",fn:()=>finishR(m)}),900)}
 async function finishR(m){await putR({...m,done:true,doneAt:Date.now()});cheer("目標達成！🏁",m.title);confetti(80)}
 function openR(m){rEditing=m||null;$("rfTitle").textContent=m?"目標を編集":"大きな目標";
-  const nm=(m&&m.num)||{};$("rCur").value=nm.cur??"";$("rGoal").value=nm.goal??"";$("rUnit").value=nm.unit||"";$("rAutoHint").textContent=nm.src?"🔄 今の数は自動で入ります（"+({tiktok:"TikTokの分析",yt:"YouTubeの分析",watch_sales:"Tick Tak",watch_profit:"Tick Tak"}[nm.src]||"自動")+"）":"";$("rEmoji").value=m?(m.emoji||""):"";$("rTitle").value=m?m.title:"";$("rMonth").value=m?(m.month||""):ymAdd(1);$("rNote").value=m?(m.note||""):"";
+  const nm=(m&&m.num)||{};$("rCur").value=nm.cur??"";$("rGoal").value=nm.goal??"";$("rUnit").value=nm.unit||"";$("rAutoHint").textContent=nm.src?"🔄 今の数は自動で入ります（"+({tiktok:"TikTokの分析",yt:"YouTubeの分析",watch_sales:"Tick Tak",watch_profit:"Tick Tak",watch_stock:"Tick Takの在庫数"}[nm.src]||"自動")+"）":"";$("rEmoji").value=m?(m.emoji||""):"";$("rTitle").value=m?m.title:"";$("rMonth").value=m?(m.month||""):ymAdd(1);$("rNote").value=m?(m.note||""):"";
   rCat=m?catOf(m.cat).k:"other";rSteps=m?(m.steps||[]).map(x=>({...x})):[];rDoneF=m?!!m.done:false;$("rStepIn").value="";
   $("rDel").style.display=m?"":"none";$("rDoneBtn").style.display=m?"":"none";drawR();openBg("rSheet");if(!m)setTimeout(()=>$("rTitle").focus(),80)}
 function drawR(){
