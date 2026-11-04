@@ -202,6 +202,15 @@ a{color:inherit}
 .rp{font-size:13.5px;line-height:1.65;margin:4px 4px 10px;font-weight:600}
 .rl{font-size:13px;line-height:1.65;padding-left:18px;margin:4px 0 8px;font-weight:600}
 details.mini summary{font-size:12px;font-weight:800;color:var(--sub);cursor:pointer;margin-top:6px}
+.dash{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0 4px}
+.dash .dt{background:#fff;border-radius:16px;padding:10px 12px;box-shadow:var(--sh);text-align:left;position:relative;overflow:hidden}
+.dash .dt .l{font-size:11.5px;font-weight:800;color:var(--sub);display:flex;gap:4px;align-items:center}
+.dash .dt .v{font-size:21px;font-weight:900;line-height:1.2;margin-top:2px}
+.dash .dt .v small{font-size:11px;color:var(--sub);font-weight:800;margin-left:2px}
+.dash .dt .g{font-size:11px;font-weight:800;color:var(--sub)}
+.dash .dt .g.up{color:var(--mint)}.dash .dt .g.dn{color:var(--coral)}
+.dash .dt i{position:absolute;left:0;bottom:0;height:4px;background:var(--cc,#8b7cf6);border-radius:0 4px 4px 0}
+.dash h4{grid-column:1/-1;margin:6px 2px 0;font-size:12px;font-weight:900;color:#5b6070}
 .persona summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:15px}
 .persona summary::-webkit-details-marker{display:none}
 .persona summary small{font-size:12px;color:var(--sub);font-weight:800}
@@ -516,6 +525,7 @@ details.mini summary{font-size:12px;font-weight:800;color:var(--sub);cursor:poin
     <div class="xp"><div class="xpl"><span id="xpTitle"></span><span id="xpNum"></span></div><div class="xpt"><i id="xpBar"></i></div></div>
   </div>
 
+  <div class="dash" id="dash"></div>
   <div class="sec"><h2 id="dayH">今日やる3つ</h2><button id="dayMore">ぜんぶ見る →</button></div>
   <div id="dayList"></div>
   <div id="portalToday"></div>
@@ -1059,7 +1069,7 @@ async function loadWatch(){try{const {data:ts}=await sb.auth.getSession();if(!ts
   let s=0,p=0;os.forEach(o=>{const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);s+=x;p+=x-((o.items&&o.items.cost_jpy)||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)});
   const {data:mc}=await sb.from('monthly_costs').select('kind,amount_jpy').eq('ym',ym.replace('-',''));(mc||[]).forEach(c=>{if(CASH_FEES.includes(c.kind))p+=c.amount_jpy||0});
   let stock=null;try{const it=await allRows(()=>sb.from('items').select('status').neq('status','sold').order('kno'));stock=it.length}catch(e){}
-  watchLive={ym,sales:s,profit:p,sold:os.length,stock};renderGoals();renderRoad()}catch(e){watchLive=null}}
+  watchLive={ym,sales:s,profit:p,sold:os.length,stock};renderGoals();renderRoad();renderDash()}catch(e){watchLive=null}}
 function liveOf(g){if(!watchLive||watchLive.ym!==monthKey()||!/時計/.test(g.label||""))return null;if(/売上/.test(g.label))return watchLive.sales;if(/利益/.test(g.label))return watchLive.profit;if(/本数|売れた/.test(g.label))return watchLive.sold;if(/在庫/.test(g.label)&&watchLive.stock!=null)return watchLive.stock;return null}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&db)loadWatch()});
 
@@ -1081,7 +1091,24 @@ function renderDaily(){const td=today();const items=DAILY.filter(d=>dailyIdx(d.k
 document.addEventListener("click",e=>{const b=e.target.closest("[data-daily]");if(!b)return;const i=dailyIdx(b.dataset.daily);if(i<0)return;const g=goalItems()[i],td=today();
   if(g.log&&g.log[td]){const it=goalItems().map(x=>({...x}));const lg={...(it[i].log||{})};delete lg[td];it[i].log=lg;saveGoals(it);toast("今日のチェックを外しました");return}
   bumpGoal(i,true);cheer(`${DAILY.find(d=>d.k===b.dataset.daily).l} 更新！`,"毎日つづけるのがいちばん強い");confetti(24)});
-function renderGoals(){renderDaily();
+function renderDash(){if(!$("dash"))return;const g=label=>goalItems().find(x=>label.test(x.label||""));
+  const tk=repTile(/TikTokフォロワー/),yt=repTile(/YouTube登録者/),ig=repTile(/IGフォロワー|Instagramフォロワー/);
+  const tkG=g(/TikTok/),w=watchLive;
+  const t=(lab,val,unit,sub,pct,cc,go,cls="")=>`<button class="dt" ${go?`data-go="${go}"`:""} style="--cc:${cc}"><div class="l">${lab}</div><div class="v">${val}<small>${unit||""}</small></div><div class="g ${cls}">${sub||""}</div>${pct!=null?`<i style="width:${Math.max(3,Math.min(100,pct))}%"></i>`:""}</button>`;
+  const fmt=v=>v==null?"—":(+v).toLocaleString();
+  const tkTarget=tkG?+tkG.target:7000;
+  let h=`<h4>📱 SNS</h4>`+t("🎵 TikTok",fmt(tk),"人",tk!=null?`目標 ${tkTarget.toLocaleString()}人まで あと${Math.max(0,tkTarget-tk).toLocaleString()}`:"毎朝の分析で入ります",tk!=null?tk/tkTarget*100:null,"#111","videos")
+   +t("▶️ YouTube",fmt(yt),"人",yt!=null?`1,500人まで あと${Math.max(0,1500-yt)}`:"毎朝の分析で入ります",yt!=null?yt/1500*100:null,"#e33","videos")
+   +t("📸 Instagram",fmt(ig),"人",ig!=null?"毎朝更新":"毎朝の分析で入ります",null,"#c1358a","videos");
+  const ss=goalItems().find(x=>x.daily==="substack"),bl=goalItems().find(x=>x.daily==="blog"),td=today();
+  h+=t("📝 今日の更新",`${(ss&&ss.log&&ss.log[td]?1:0)+(bl&&bl.log&&bl.log[td]?1:0)+(ssDraft&&ssDraft.blogDay===td&&!(bl&&bl.log&&bl.log[td])?1:0)}`,"/2","Substack・ブログ",null,"#ff6719","today");
+  h+=`<h4>⌚ 時計（今月）</h4>`;
+  if(w){h+=t("売上",fmtBig(w.sales,"円"),"円","目標300万",w.sales/3000000*100,"#2fb67f","me")+t("利益",fmtBig(w.profit,"円"),"円","目標70万",w.profit/700000*100,"#2fb67f","me")
+     +t("売れた本数",w.sold,"本","目標 40本/月",w.sold/40*100,"#4f8ff7","me")+t("在庫",w.stock??"—","本","60本まで減らす",w.stock!=null?Math.max(0,(125-w.stock)/(125-60)*100):null,"#f0a92a","road",w.stock!=null&&w.stock>60?"dn":"up")}
+  else h+=`<div class="dt" style="grid-column:1/-1"><div class="g">この端末でTick Takにログインすると出ます</div></div>`;
+  $("dash").innerHTML=h}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b){const k=b.dataset.go;if(k==="videos")vsub="ana";showTab(k)}});
+function renderGoals(){renderDaily();renderDash();
   const d=new Date(),m=d.getMonth()+1,last=new Date(d.getFullYear(),m,0).getDate(),left=last-d.getDate()+1;
   $("gTitle").textContent=`🎯 ${m}月の目標`;$("gLeft").textContent=`のこり${left}日`;
   const it=goalItems();
@@ -1268,7 +1295,7 @@ document.addEventListener("click",async e=>{
 
 /* ---------- analysis ---------- */
 function renderReport(r){
-  if(!r)return;latestReport=r;setTimeout(renderRoad,0);
+  if(!r)return;latestReport=r;setTimeout(()=>{renderRoad();renderDash()},0);
   const comp=r.comp||[];const pts=r.points||[];
   $("tzDate").textContent=(r.date||"")+" →";
   $("tzT").textContent=r.headline||r.summary||"今日の分析が届きました";
