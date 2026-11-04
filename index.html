@@ -602,8 +602,8 @@ a{color:inherit}
 <div class="cheer" id="cheer"><div class="ci">✓</div><div><b id="cheerT"></b><span id="cheerS"></span></div></div>
 <div class="lvup" id="lvup"><div><div class="kc" id="lvKaho"></div><span id="lvupT">LEVEL UP!</span></div></div>
 <div class="story" id="story"><div class="bars" id="sBars"></div><button class="x" id="sX" aria-label="閉じる">✕</button><div class="sl" id="sSl"></div><div class="tap">タップで次へ</div></div>
-<div class="login" id="login"><div class="lcard"><div class="lface" id="lFace"></div><h2>Kahoのタスク</h2><p>Tick Takと同じメールアドレスとパスワードで入れます</p>
-  <form id="lForm"><input id="lEmail" type="email" autocomplete="username" placeholder="メールアドレス" required><input id="lPw" type="password" autocomplete="current-password" placeholder="パスワード" required><button type="submit">ログイン</button></form><div id="lMsg"></div></div></div>
+<div class="login" id="login"><div class="lcard"><div class="lface" id="lFace"></div><h2>Kahoのタスク</h2><p>メールアドレスとパスワードで入ります</p>
+  <form id="lForm"><input id="lEmail" type="email" autocomplete="username" placeholder="メールアドレス" required><input id="lPw" type="password" autocomplete="current-password" placeholder="パスワード" required><button type="submit" id="lBtn">ログイン</button></form><button type="button" class="out" id="lSwitch" style="display:none"></button><div id="lMsg"></div></div></div>
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastB" style="display:none"></button></div>
 
 <script>
@@ -631,33 +631,41 @@ function cheer(title,sub){$("cheerT").textContent=title;$("cheerS").textContent=
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 const newId=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
-/* ---------- storage: Supabase (Tick Takと同じプロジェクト・同じログイン) ---------- */
+/* ---------- storage: Supabase（アプリのデータ＝kb、時計の数字＝Tick Takのsb） ---------- */
 const SUPABASE_URL="https://wmxzpyeqxtavtbjowylm.supabase.co",SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndteHpweWVxeHRhdnRiam93eWxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzI4NjEsImV4cCI6MjEwNzQ0ODg2MX0.q7seks6i0x6alH4n_I32vgyK2gxdn7I405fwSAA5SkQ";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); // Tick Tak（時計の数字を読むだけ）
+const KAHO_URL="https://wzymuwwseyklkfngxewh.supabase.co",KAHO_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6eW11d3dzZXlrbGtmbmd4ZXdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NjcxMjMsImV4cCI6MjEwODA0MzEyM30.o4P-Rp9bnKfQLD4TMuaE21PZi1A1Ye-wwhwTXmhggDY";
+const kb=supabase.createClient(KAHO_URL,KAHO_ANON_KEY); // アプリのデータ（watch-stock-2）
 function makeDb(){
   const cache={},subs={},docSubs={},loaded={};
   const emit=c=>{const m=cache[c]||new Map();const docs=[...m].map(([id,d])=>({id,data:()=>d}));(subs[c]||[]).forEach(f=>f({docs,metadata:{fromCache:false}}))};
   const emitDoc=(c,id)=>{const d=cache[c]&&cache[c].get(id);(docSubs[c+"/"+id]||[]).forEach(f=>f({exists:d!==undefined,data:()=>d}))};
   const emitAll=c=>{emit(c);Object.keys(docSubs).filter(k=>k.startsWith(c+"/")).forEach(k=>emitDoc(c,k.slice(c.length+1)))};
-  async function load(c){const {data,error}=await sb.from("kaho_docs").select("id,data").eq("col",c);if(error)throw error;const m=new Map();data.forEach(r=>m.set(r.id,r.data));cache[c]=m;emitAll(c)}
+  async function load(c){const {data,error}=await kb.from("kaho_docs").select("id,data").eq("col",c);if(error)throw error;const m=new Map();data.forEach(r=>m.set(r.id,r.data));cache[c]=m;emitAll(c)}
   function ensure(c,onErr){if(!loaded[c])loaded[c]=load(c).catch(e=>{loaded[c]=null;onErr&&onErr({code:e.code||e.message})});return loaded[c]}
   function apply(c,id,d){if(!cache[c])cache[c]=new Map();if(d===undefined)cache[c].delete(id);else cache[c].set(id,d);emit(c);emitDoc(c,id)}
-  sb.channel("kaho_docs").on("postgres_changes",{event:"*",schema:"public",table:"kaho_docs"},p=>{
+  kb.channel("kaho_docs").on("postgres_changes",{event:"*",schema:"public",table:"kaho_docs"},p=>{
     if(p.eventType==="DELETE"){const o=p.old||{};if(o.col&&loaded[o.col])apply(o.col,o.id,undefined);return}
     const n=p.new||{};if(n.col&&loaded[n.col])apply(n.col,n.id,n.data)}).subscribe();
   const refresh=()=>Object.keys(loaded).forEach(c=>load(c).catch(()=>{}));
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh()});
   setInterval(()=>{if(!document.hidden)refresh()},60000);
   const ref=(c,id)=>({
-    async set(body){apply(c,id,body);const {error}=await sb.from("kaho_docs").upsert({col:c,id,data:body,updated_at:new Date().toISOString()},{onConflict:"user_id,col,id"});if(error){load(c).catch(()=>{});throw error}},
-    async delete(){apply(c,id,undefined);const {error}=await sb.from("kaho_docs").delete().eq("col",c).eq("id",id);if(error){load(c).catch(()=>{});throw error}},
+    async set(body){apply(c,id,body);const {error}=await kb.from("kaho_docs").upsert({col:c,id,data:body,updated_at:new Date().toISOString()},{onConflict:"user_id,col,id"});if(error){load(c).catch(()=>{});throw error}},
+    async delete(){apply(c,id,undefined);const {error}=await kb.from("kaho_docs").delete().eq("col",c).eq("id",id);if(error){load(c).catch(()=>{});throw error}},
     onSnapshot(cb,err){(docSubs[c+"/"+id]=docSubs[c+"/"+id]||[]).push(cb);ensure(c,err).then(()=>{if(cache[c])emitDoc(c,id)});return()=>{}}});
   return {collection:c=>({doc:id=>ref(c,id),onSnapshot(cb,err){(subs[c]=subs[c]||[]).push(cb);ensure(c,err).then(()=>{if(cache[c])emit(c)});return()=>{}}}),doc:p=>{const [c,i]=p.split("/");return ref(c,i)}};
 }
-function needLogin(){return new Promise(res=>{$("lFace").innerHTML=kahoSVG("happy");$("login").classList.add("on");
+let signupMode=false;
+function setMode(up){signupMode=up;$("lBtn").textContent=up?"登録してはじめる":"ログイン";$("lSwitch").textContent=up?"登録済みの人はこちら（ログイン）":"はじめての人はこちら（登録）";$("lPw").autocomplete=up?"new-password":"current-password";$("lMsg").textContent=""}
+function needLogin(){return new Promise(res=>{$("lFace").innerHTML=kahoSVG("happy");$("login").classList.add("on");$("lSwitch").onclick=()=>setMode(!signupMode);
   $("lForm").onsubmit=async e=>{e.preventDefault();$("lMsg").textContent="確認中…";
-    const {error}=await sb.auth.signInWithPassword({email:$("lEmail").value.trim(),password:$("lPw").value});
-    if(error){$("lMsg").textContent="ログインできませんでした。メールとパスワードを確かめてね";return}
+    const email=$("lEmail").value.trim(),password=$("lPw").value;
+    if(signupMode){const {data,error}=await kb.auth.signUp({email,password});
+      if(error){$("lMsg").textContent="登録できませんでした："+error.message;return}
+      if(!data.session){$("lMsg").textContent="確認メールを送りました。メールのリンクを押してから、もう一度ログインしてね";setMode(false);return}}
+    else{const {error}=await kb.auth.signInWithPassword({email,password});
+      if(error){$("lMsg").textContent="ログインできませんでした。メールとパスワードを確かめてね";return}}
     $("lPw").value="";$("login").classList.remove("on");res()}})}
 
 /* ---------- storage: db, or this browser as fallback ---------- */
@@ -680,7 +688,7 @@ async function start(){
   render();
   let timer=setTimeout(()=>{$("status").textContent="接続待ち…"},10000);
   try{
-    const {data:ss}=await sb.auth.getSession();
+    const {data:ss}=await kb.auth.getSession();
     if(!ss.session){clearTimeout(timer);$("status").textContent="ログインしてね";await needLogin();$("status").textContent="読み込み中…"}
     db=makeDb();loadWatch();
     col=db.collection("tasks");
@@ -939,7 +947,7 @@ const shipRule=o=>{const c=(o.country||'').toUpperCase(),base=SHIP_RULE[c]??SHIP
 const shipOf=o=>(o.ship_actual_jpy>=1000?o.ship_actual_jpy:shipRule(o))+HANDLING;
 async function allRows(build){const out=[];for(let i=0;;i+=1000){const {data,error}=await build().range(i,i+999);if(error)throw error;if(!data||!data.length)break;out.push(...data);if(data.length<1000)break}return out}
 let watchLive=null;
-async function loadWatch(){try{const d=new Date(),ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+async function loadWatch(){try{const {data:ts}=await sb.auth.getSession();if(!ts.session){watchLive=null;return}const d=new Date(),ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   const os=await allRows(()=>sb.from('orders').select('platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
   let s=0,p=0;os.forEach(o=>{const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);s+=x;p+=x-((o.items&&o.items.cost_jpy)||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)});
   const {data:mc}=await sb.from('monthly_costs').select('kind,amount_jpy').eq('ym',ym.replace('-',''));(mc||[]).forEach(c=>{if(CASH_FEES.includes(c.kind))p+=c.amount_jpy||0});
@@ -1267,10 +1275,10 @@ $("moveGo").onclick=async()=>{let j;try{j=JSON.parse($("moveTxt").value)}catch(e
   (j.tasks||[]).forEach(({id,...d})=>add("tasks",id,d));(j.videos||[]).forEach(({id,...d})=>add("videos",id,d));(j.roadmap||[]).forEach(({id,...d})=>add("roadmap",id,d));
   Object.entries(j.health||{}).forEach(([k,v])=>add("health",k,v));Object.entries(j.goals||{}).forEach(([k,v])=>add("goals",k,v));if(j.report)add("reports","latest",j.report);
   if(!rows.length){toast("引っ越すデータがありません");return}
-  $("moveGo").textContent="読み込み中…";const {error}=await sb.from("kaho_docs").upsert(rows,{onConflict:"user_id,col,id"});
+  $("moveGo").textContent="読み込み中…";const {error}=await kb.from("kaho_docs").upsert(rows,{onConflict:"user_id,col,id"});
   if(error){$("moveGo").textContent="読み込む";toast("読み込めませんでした："+(error.message||""));return}
   cheer("引っ越し完了！",`${rows.length}件 読み込みました`);setTimeout(()=>location.reload(),1500)};
-$("logout").onclick=async()=>{await sb.auth.signOut();location.reload()};
+$("logout").onclick=async()=>{await kb.auth.signOut();location.reload()};
 
 /* ---------- tabs (hash routing) ---------- */
 const TABS={today:"pToday",tasks:"pTasks",videos:"pVideos",analysis:"pAna",road:"pRoad",me:"pMe"};
