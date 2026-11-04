@@ -202,7 +202,27 @@ a{color:inherit}
 .rp{font-size:13.5px;line-height:1.65;margin:4px 4px 10px;font-weight:600}
 .rl{font-size:13px;line-height:1.65;padding-left:18px;margin:4px 0 8px;font-weight:600}
 details.mini summary{font-size:12px;font-weight:800;color:var(--sub);cursor:pointer;margin-top:6px}
-.dash{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0 4px}
+.dash{margin:14px 0 4px}
+.dsec{display:flex;justify-content:space-between;align-items:baseline;margin:10px 4px 8px}.dsec span{font-size:14px;font-weight:900}.dsec small{font-size:11px;color:var(--sub);font-weight:800}
+.sgrid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.sn{position:relative;border-radius:20px;padding:12px 13px;color:#fff;text-align:left;min-height:104px;overflow:hidden;box-shadow:0 8px 20px rgba(31,35,48,.12)}
+.sn.tk{background:linear-gradient(135deg,#111 0%,#2b2b2b 55%,#00c7d2 140%)}.sn.tk:after{content:"";position:absolute;right:-20px;bottom:-30px;width:90px;height:90px;border-radius:50%;background:#ff2d6f;opacity:.35;filter:blur(18px)}
+.sn.yt{background:linear-gradient(135deg,#ff3b3b,#c4001a)}
+.sn.ig{background:linear-gradient(135deg,#7b3ff2,#d62f8e 55%,#ffa43b)}
+.sn.up{background:linear-gradient(135deg,#ff8a3d,#ff5a6b)}
+.snl{font-size:12px;font-weight:900;display:flex;gap:6px;align-items:center;opacity:.95}
+.snl .ic{width:20px;height:20px;border-radius:7px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:11px}
+.snv{font-size:27px;font-weight:900;line-height:1.1;margin-top:8px;letter-spacing:-.01em}.snv small{font-size:13px;opacity:.8;margin-left:2px}
+.sns{font-size:11px;font-weight:800;opacity:.85;margin-top:3px}.sns b{background:rgba(255,255,255,.22);border-radius:99px;padding:1px 7px}
+.snr{position:absolute;right:8px;top:8px;width:46px;height:46px}.snr span{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:900}
+.sn .dots{display:flex;gap:6px;margin-top:6px}.sn .dots i{width:18px;height:6px;border-radius:99px;background:rgba(255,255,255,.35)}.sn .dots i.on{background:#fff}
+.wcard{display:block;width:100%;text-align:left;background:linear-gradient(160deg,#103b2c,#1d5c45);border-radius:22px;padding:14px 16px 6px;color:#fff;box-shadow:0 8px 20px rgba(16,59,44,.25)}
+.wb{margin-bottom:12px}.wbt{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;font-weight:800;opacity:.95}
+.wbt b{font-size:20px;font-weight:900}.wbt b small{font-size:11px;margin-left:1px;opacity:.8}.wbt b em{font-style:normal;font-size:11px;opacity:.6;margin-left:4px;font-weight:800}
+.wbar{position:relative;height:10px;border-radius:99px;background:rgba(255,255,255,.15);margin-top:5px}
+.wbar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,#7ef0b5,#c6ff6b)}.wbar i.bh{background:linear-gradient(90deg,#ffb938,#ff6b57)}
+.wbar u{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff;border-radius:2px;opacity:.9}
+.wbs{font-size:11px;font-weight:800;opacity:.75;margin-top:4px}
 .dash .dt{background:#fff;border-radius:16px;padding:10px 12px;box-shadow:var(--sh);text-align:left;position:relative;overflow:hidden}
 .dash .dt .l{font-size:11.5px;font-weight:800;color:var(--sub);display:flex;gap:4px;align-items:center}
 .dash .dt .v{font-size:21px;font-weight:900;line-height:1.2;margin-top:2px}
@@ -1091,21 +1111,25 @@ function renderDaily(){const td=today();const items=DAILY.filter(d=>dailyIdx(d.k
 document.addEventListener("click",e=>{const b=e.target.closest("[data-daily]");if(!b)return;const i=dailyIdx(b.dataset.daily);if(i<0)return;const g=goalItems()[i],td=today();
   if(g.log&&g.log[td]){const it=goalItems().map(x=>({...x}));const lg={...(it[i].log||{})};delete lg[td];it[i].log=lg;saveGoals(it);toast("今日のチェックを外しました");return}
   bumpGoal(i,true);cheer(`${DAILY.find(d=>d.k===b.dataset.daily).l} 更新！`,"毎日つづけるのがいちばん強い");confetti(24)});
-function renderDash(){if(!$("dash"))return;const g=label=>goalItems().find(x=>label.test(x.label||""));
+function ringSVG(p,col){const r=17,c=2*Math.PI*r,v=Math.max(0,Math.min(100,p||0));return `<svg viewBox="0 0 44 44" width="46" height="46" style="transform:rotate(-90deg)"><circle cx="22" cy="22" r="${r}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="22" cy="22" r="${r}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*v/100).toFixed(1)} ${c.toFixed(1)}"/></svg>`}
+function tileSub(re){const t=(latestReport&&latestReport.stats&&latestReport.stats.tiles)||[];const x=t.find(a=>re.test(a.label||""));return x&&x.sub?String(x.sub).split(/[・（(]/)[0].trim():""}
+function renderDash(){if(!$("dash"))return;
   const tk=repTile(/TikTokフォロワー/),yt=repTile(/YouTube登録者/),ig=repTile(/IGフォロワー|Instagramフォロワー/);
-  const tkG=g(/TikTok/),w=watchLive;
-  const t=(lab,val,unit,sub,pct,cc,go,cls="")=>`<button class="dt" ${go?`data-go="${go}"`:""} style="--cc:${cc}"><div class="l">${lab}</div><div class="v">${val}<small>${unit||""}</small></div><div class="g ${cls}">${sub||""}</div>${pct!=null?`<i style="width:${Math.max(3,Math.min(100,pct))}%"></i>`:""}</button>`;
-  const fmt=v=>v==null?"—":(+v).toLocaleString();
-  const tkTarget=tkG?+tkG.target:7000;
-  let h=`<h4>📱 SNS</h4>`+t("🎵 TikTok",fmt(tk),"人",tk!=null?`目標 ${tkTarget.toLocaleString()}人まで あと${Math.max(0,tkTarget-tk).toLocaleString()}`:"毎朝の分析で入ります",tk!=null?tk/tkTarget*100:null,"#111","videos")
-   +t("▶️ YouTube",fmt(yt),"人",yt!=null?`1,500人まで あと${Math.max(0,1500-yt)}`:"毎朝の分析で入ります",yt!=null?yt/1500*100:null,"#e33","videos")
-   +t("📸 Instagram",fmt(ig),"人",ig!=null?"毎朝更新":"毎朝の分析で入ります",null,"#c1358a","videos");
+  const tkG=goalItems().find(x=>/TikTok/.test(x.label||"")),tkT=tkG?+tkG.target:7000,w=watchLive,fmt=v=>v==null?"—":(+v).toLocaleString();
+  const sns=(cls,icon,name,val,goal,delta,go)=>{const pct=val!=null&&goal?val/goal*100:null;
+    return `<button class="sn ${cls}" data-go="${go}"><div class="snl"><span class="ic">${icon}</span>${name}</div><div class="snv">${fmt(val)}</div><div class="sns">${delta?`<b>${esc(delta)}</b> `:""}${goal?`目標 ${goal.toLocaleString()}`:""}</div>${pct!=null?`<div class="snr">${ringSVG(pct,"#fff")}<span>${Math.round(pct)}%</span></div>`:""}</button>`};
   const ss=goalItems().find(x=>x.daily==="substack"),bl=goalItems().find(x=>x.daily==="blog"),td=today();
-  h+=t("📝 今日の更新",`${(ss&&ss.log&&ss.log[td]?1:0)+(bl&&bl.log&&bl.log[td]?1:0)+(ssDraft&&ssDraft.blogDay===td&&!(bl&&bl.log&&bl.log[td])?1:0)}`,"/2","Substack・ブログ",null,"#ff6719","today");
-  h+=`<h4>⌚ 時計（今月）</h4>`;
-  if(w){h+=t("売上",fmtBig(w.sales,"円"),"円","目標300万",w.sales/3000000*100,"#2fb67f","me")+t("利益",fmtBig(w.profit,"円"),"円","目標70万",w.profit/700000*100,"#2fb67f","me")
-     +t("売れた本数",w.sold,"本","目標 40本/月",w.sold/40*100,"#4f8ff7","me")+t("在庫",w.stock??"—","本","60本まで減らす",w.stock!=null?Math.max(0,(125-w.stock)/(125-60)*100):null,"#f0a92a","road",w.stock!=null&&w.stock>60?"dn":"up")}
-  else h+=`<div class="dt" style="grid-column:1/-1"><div class="g">この端末でTick Takにログインすると出ます</div></div>`;
+  const upd=(ss&&ss.log&&ss.log[td]?1:0)+((bl&&bl.log&&bl.log[td])||(ssDraft&&ssDraft.blogDay===td)?1:0);
+  let h=`<div class="dsec"><span>📱 SNS</span><small>毎朝の分析から</small></div><div class="sgrid2">`
+    +sns("tk","♪","TikTok",tk,tkT,tileSub(/TikTokフォロワー/),"videos")
+    +sns("yt","▶","YouTube",yt,1500,tileSub(/YouTube登録者/),"videos")
+    +sns("ig","◎","Instagram",ig,null,tileSub(/IGフォロワー/),"videos")
+    +`<button class="sn up" data-go="today"><div class="snl"><span class="ic">✎</span>今日の更新</div><div class="snv">${upd}<small>/2</small></div><div class="sns">Substack・ブログ</div><div class="dots">${[0,1].map(i=>`<i class="${i<upd?"on":""}"></i>`).join("")}</div></button></div>`;
+  const d=new Date(),dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(),pace=Math.round(d.getDate()/dim*100);
+  const bar=(lab,val,unit,goal,down,start)=>{let pct,ok;if(down){pct=start>goal?Math.max(0,Math.min(100,(start-val)/(start-goal)*100)):0;ok=null}else{pct=Math.max(0,Math.min(100,val/goal*100));ok=pct>=pace}
+    return `<div class="wb"><div class="wbt"><span>${lab}</span><b>${unit==="円"?fmtBig(val,"円"):(+val).toLocaleString()}<small>${unit}</small><em>/ ${unit==="円"?fmtBig(goal,"円"):goal}${unit}</em></b></div><div class="wbar"><i style="width:${pct}%" class="${ok===false?"bh":""}"></i>${down?"":`<u style="left:${pace}%"></u>`}</div><div class="wbs">${down?`あと ${Math.max(0,val-goal)}本 減らす`:(ok?`✓ ペースどおり（${Math.round(pct)}%）`:`⚠ 今日の目安 ${pace}% → いま ${Math.round(pct)}%`)}</div></div>`};
+  h+=`<div class="dsec"><span>⌚ 時計（${d.getMonth()+1}月）</span><small>Tick Takから・縦線＝今日の目安</small></div>`;
+  h+=w?`<button class="wcard" data-go="me">${bar("売上",w.sales,"円",3000000)}${bar("利益",w.profit,"円",700000)}${bar("売れた本数",w.sold,"本",40)}${w.stock!=null?bar("在庫",w.stock,"本",60,true,125):""}</button>`:`<div class="wcard"><div class="wbs">この端末でTick Takにログインすると出ます</div></div>`;
   $("dash").innerHTML=h}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b){const k=b.dataset.go;if(k==="videos")vsub="ana";showTab(k)}});
 function renderGoals(){renderDaily();renderDash();
