@@ -282,6 +282,19 @@ a{color:inherit}
 .rmini .rh{cursor:pointer}
 .rmini .ri{width:40px;height:40px;font-size:20px;background:#fff}
 .rmini .rp{font-weight:900;font-size:18px;color:var(--lav)}
+.tline h3{margin:0 0 12px;font-size:16px;font-weight:900}
+.tl{position:relative;padding-left:28px}
+.tl:before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:4px;border-radius:4px;background:linear-gradient(#ff6b57,#8b7cf6,#2fb67f)}
+.tlnow{position:relative;font-size:13px;font-weight:800;color:var(--coral);margin-bottom:6px}
+.tlnow:before{content:"";position:absolute;left:-25px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 5px var(--coral2)}
+.tly{position:relative;font-size:21px;font-weight:900;margin:16px 0 8px;color:#454a57}
+.tly:before{content:"";position:absolute;left:-25px;top:9px;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid #c9c5bb}
+.tlm{display:flex;gap:11px;align-items:center;background:var(--cb);border-radius:16px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.tld{font-size:24px;width:42px;height:42px;border-radius:13px;background:#fff;display:grid;place-items:center;flex:none}
+.tlm b{display:block;font-size:15px;font-weight:900;line-height:1.35}
+.tlm small{font-size:12px;font-weight:800;color:#5b6070}
+.tlm em{font-style:normal;margin-left:auto;font-weight:900;color:var(--cc);font-size:15px;flex:none}
+.tlm.done{opacity:.6}
 .rover{display:flex;align-items:center;gap:14px;background:linear-gradient(150deg,#e6f3ff,#f1edff)}
 .rover .big{font-size:34px;font-weight:900;line-height:1}
 .rover .big small{font-size:14px;color:var(--sub);margin-left:4px}
@@ -1205,12 +1218,21 @@ function rCard(m){const c=catOf(m.cat),p=rProg(m),s=m.steps||[],over=!m.done&&m.
   <div class="bar"><i style="width:${p}%"></i></div>
   ${s.length?`<div class="rsteps">${s.map(x=>rStepRow(m,x)).join("")}</div>`:`<div class="rnote">ステップを足すと進み具合が出ます（タップして編集）</div>`}
   ${m.note?`<div class="rnote">💭 ${esc(m.note)}</div>`:""}</div>`}
+function monthsUntil(ym){if(!ym)return null;const [y,m]=ym.split("-").map(Number);const d=new Date();return (y-d.getFullYear())*12+(m-(d.getMonth()+1))}
+function untilLabel(n){if(n==null)return "いつか";if(n<0)return "すぎてる";if(n===0)return "今月中";const y=Math.floor(n/12),m=n%12;return "あと"+(y?y+"年":"")+(m?m+"か月":"")}
+function tlItem(m){const c=catOf(m.cat),p=rProg(m);
+  return `<div class="tlm ${m.done?"done":""}" data-red="${m.id}" style="--cc:${c.c};--cb:${c.b}"><span class="tld">${esc(m.emoji||c.e)}</span><div><b>${esc(m.title)}</b><small>${m.month?(+m.month.slice(5))+"月 ・ ":""}${m.done?"🏁 達成！":untilLabel(monthsUntil(m.month))}</small></div>${(m.steps||[]).length&&!m.done?`<em>${p}%</em>`:""}</div>`}
+function timelineHTML(){const dated=road.filter(m=>m.month).sort(rSort),undated=road.filter(m=>!m.month);if(!road.length)return "";
+  const years=[...new Set(dated.map(m=>m.month.slice(0,4)))],n=new Date();
+  return `<div class="card tline"><h3>🗺️ 人生のロードマップ</h3><div class="tl"><div class="tlnow">📍 いま ${n.getFullYear()}年${n.getMonth()+1}月</div>`
+   +years.map(y=>`<div class="tly">${y}年</div>`+dated.filter(m=>m.month.startsWith(y)).map(tlItem).join("")).join("")
+   +(undated.length?`<div class="tly">いつか</div>`+undated.map(tlItem).join(""):"")+`</div></div>`}
 function nextMilestone(){return road.filter(m=>!m.done).sort(rSort)[0]}
 function renderRoad(){
   const list=road.slice().sort(rSort),done=list.filter(m=>m.done).length;
   $("rSum").textContent=list.length?`${done}/${list.length} 達成`:"";
   const nx=nextMilestone();
-  $("rTop").innerHTML=list.length?`<div class="card rover"><div><div class="k">達成した目標</div><div class="big">${done}<small>/ ${list.length}</small></div></div><div style="flex:1;min-width:0"><div class="k">次の目的地</div><div class="nx">${nx?`${esc(nx.emoji||catOf(nx.cat).e)} ${esc(nx.title)}（${ymLabel(nx.month)}）`:"ぜんぶ達成！🎉"}</div></div></div>`:"";
+  $("rTop").innerHTML=timelineHTML()+(list.length?`<div class="sec"><h2>✅ ステップ</h2><small>目標ごとのやること</small></div>`:"")+(list.length?`<div class="card rover"><div><div class="k">達成した目標</div><div class="big">${done}<small>/ ${list.length}</small></div></div><div style="flex:1;min-width:0"><div class="k">次の目的地</div><div class="nx">${nx?`${esc(nx.emoji||catOf(nx.cat).e)} ${esc(nx.title)}（${ymLabel(nx.month)}）`:"ぜんぶ達成！🎉"}</div></div></div>`:"");
   $("rList").innerHTML=list.length?RPH.map(([k,l])=>{const it=list.filter(m=>rPhase(m)===k);if(!it.length)return "";
     return `<div class="group">${l}<em>${it.length}</em></div><div class="rtl">${it.map(rCard).join("")}</div>`}).join("")
     :`<div class="empty"><span class="em">🗺️</span>大きな目標と、そこまでの道のりを置いておく場所です。<br>右下の＋で追加してね<br><button class="gadd" data-rseed style="margin-top:14px;max-width:280px">今のタスクと目標から例を入れる</button></div>`;
