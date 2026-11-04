@@ -173,6 +173,11 @@ a{color:inherit}
 .portalc input{width:100%;border:0;background:var(--soft);border-radius:14px;padding:12px;font-size:14px;margin:8px 0}
 .portalc .row{display:flex;gap:8px}.portalc .row button{flex:1;border-radius:14px;padding:11px;font-weight:900;background:var(--ink);color:#fff}
 .portalc .row button.s{background:var(--soft);color:#5b6070}
+.daily{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.dly{background:#fff;border-radius:18px;padding:12px;box-shadow:var(--sh);text-align:left;display:flex;gap:10px;align-items:center}
+.dly .e{font-size:24px;width:42px;height:42px;border-radius:13px;background:var(--soft);display:grid;place-items:center;flex:none}
+.dly b{display:block;font-size:13.5px;font-weight:900}.dly small{font-size:11.5px;color:var(--sub);font-weight:800}
+.dly.on{background:var(--mint2)}.dly.on .e{background:#fff}
 .persona summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:15px}
 .persona summary::-webkit-details-marker{display:none}
 .persona summary small{font-size:12px;color:var(--sub);font-weight:800}
@@ -490,6 +495,7 @@ a{color:inherit}
   <div class="sec"><h2 id="dayH">今日やる3つ</h2><button id="dayMore">ぜんぶ見る →</button></div>
   <div id="dayList"></div>
   <div id="portalToday"></div>
+  <div id="dailyBox"></div>
   <div id="rMini"></div>
 
   <div class="sec"><h2>からだ</h2><small id="bWk"></small></div>
@@ -1043,7 +1049,15 @@ function goalItems(){return (goals&&goals.items)||[]}
 async function saveGoals(items){goals={items,updated:Date.now()};
   if(local||!gcol){try{localStorage.setItem(GKEY+monthKey(),JSON.stringify(goals))}catch(e){}renderGoals();return}
   renderGoals();try{await gcol.doc(monthKey()).set(goals)}catch(e){toast("保存できませんでした")}}
-function renderGoals(){
+const DAILY=[{k:"substack",e:"✍️",l:"Substack",u:"https://substack.com/"},{k:"blog",e:"📖",l:"アプリのブログ",u:"https://miyatacyclek-code.github.io/kahos-ibaraki/"}];
+function dailyIdx(k){return goalItems().findIndex(g=>g.daily===k)}
+function renderDaily(){const td=today();const items=DAILY.filter(d=>dailyIdx(d.k)>=0);if(!$("dailyBox"))return;
+  $("dailyBox").innerHTML=items.length?`<div class="sec"><h2>📝 毎日の更新</h2><small>押すと今日の分にチェック</small></div><div class="daily">${items.map(d=>{const g=goalItems()[dailyIdx(d.k)],on=!!(g.log&&g.log[td]);
+    return `<button class="dly ${on?"on":""}" data-daily="${d.k}"><span class="e">${on?"✅":d.e}</span><span><b>${d.l}</b><small>${on?"今日はできた！":"今週 "+curOf(g)+"/"+g.target}</small></span></button>`}).join("")}</div>`:""}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-daily]");if(!b)return;const i=dailyIdx(b.dataset.daily);if(i<0)return;const g=goalItems()[i],td=today();
+  if(g.log&&g.log[td]){const it=goalItems().map(x=>({...x}));const lg={...(it[i].log||{})};delete lg[td];it[i].log=lg;saveGoals(it);toast("今日のチェックを外しました");return}
+  bumpGoal(i,true);cheer(`${DAILY.find(d=>d.k===b.dataset.daily).l} 更新！`,"毎日つづけるのがいちばん強い");confetti(24)});
+function renderGoals(){renderDaily();
   const d=new Date(),m=d.getMonth()+1,last=new Date(d.getFullYear(),m,0).getDate(),left=last-d.getDate()+1;
   $("gTitle").textContent=`🎯 ${m}月の目標`;$("gLeft").textContent=`のこり${left}日`;
   const it=goalItems();
