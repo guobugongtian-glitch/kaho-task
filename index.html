@@ -186,6 +186,22 @@ a{color:inherit}
 .sscard .ph{font-size:12.5px;font-weight:800;margin-top:8px}
 .sscard .row{display:flex;gap:8px;margin-top:10px}.sscard .row a,.sscard .row button{flex:1;text-align:center;border-radius:14px;padding:11px;font-weight:900;font-size:13px;text-decoration:none}
 .sscard .row button{background:var(--ink);color:#fff}.sscard .row a{background:#fff;color:#ff6719}
+.asum .todo{background:rgba(255,255,255,.08);border-radius:14px;padding:10px 12px;margin-top:12px}
+.asum .todo b{font-size:13px;color:#ffcf6e}
+.asum .ti{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;font-weight:700;line-height:1.5;margin-top:6px;color:#f1f1f4}
+.asum .ti span{flex:none;width:20px;height:20px;border-radius:50%;background:#ffcf6e;color:#1f2330;display:grid;place-items:center;font-size:11px;font-weight:900;margin-top:1px}
+#report .tiles{margin-bottom:12px}
+.rsec{background:#fff;border-radius:18px;box-shadow:var(--sh);margin-bottom:10px}
+.rsec>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;font-weight:900;font-size:14.5px}
+.rsec>summary::-webkit-details-marker{display:none}
+.rsec>summary::after{content:"＋";color:var(--sub);font-weight:900}
+.rsec[open]>summary::after{content:"－"}
+.rsec>summary em{font-style:normal;font-size:11px;background:var(--soft);border-radius:99px;padding:2px 8px;color:var(--sub);margin-left:auto;margin-right:8px}
+.rsec .rin{padding:0 12px 12px}
+.rsec .ccard,.rsec .hk{box-shadow:none;border:1.5px solid var(--line)}
+.rp{font-size:13.5px;line-height:1.65;margin:4px 4px 10px;font-weight:600}
+.rl{font-size:13px;line-height:1.65;padding-left:18px;margin:4px 0 8px;font-weight:600}
+details.mini summary{font-size:12px;font-weight:800;color:var(--sub);cursor:pointer;margin-top:6px}
 .persona summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:15px}
 .persona summary::-webkit-details-marker{display:none}
 .persona summary small{font-size:12px;color:var(--sub);font-weight:800}
@@ -1259,19 +1275,23 @@ function renderReport(r){
   $("tzS").textContent=comp.length?`人気投稿 ${comp.length}本 ＋ Kahoならこう撮る案つき`:"タップで開く";
   const plat=k=>PL[k]||esc(k||"");
   const added=i=>videos.some(v=>v.src==="comp:"+(r.date||"")+":"+i);
-  $("report").innerHTML=`<div class="asum"><div class="k"><span>📈 今日の分析</span><span>${esc(r.date||"")}</span></div><div class="t">${esc(r.headline||"今日の分析")}</div>${r.summary?`<div style="font-size:13.5px;line-height:1.6;margin-top:8px;color:#e4e4e7">${esc(r.summary)}</div>`:""}${pts.length?`<ul>${pts.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</div>
-  ${(r.stats||r.mine)?`<div class="ah">📊 Kahoの数字${r.stats&&r.stats.period?`<small style="font-size:12px;color:var(--sub);margin-left:6px">${esc(r.stats.period)}</small>`:""}</div>`:""}
-  ${r.stats&&(r.stats.tiles||[]).length?`<div class="tiles">${r.stats.tiles.map(t=>`<div class="tile"><div class="l">${esc(t.label||"")}</div><div class="v">${esc(t.value??"")}</div>${t.sub?`<div class="s ${/^\+|↑/.test(t.sub)?"up":(/^-|↓|−/.test(t.sub)?"down":"")}">${esc(t.sub)}</div>`:""}</div>`).join("")}</div>`:""}
-  ${r.stats&&(r.stats.notes||[]).length?`<ul class="mnotes">${r.stats.notes.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
-  ${r.mine?`<div class="mine" style="margin-top:10px">${esc(r.mine)}</div>`:""}
-  ${comp.length?`<div class="ah">🔥 他のインフルエンサーの人気投稿</div>`+comp.map((c,i)=>`<div class="ccard"><div class="who"><span>${esc(c.who||"")} ・ <span class="plat ${esc(c.plat||"")}">${plat(c.plat)}</span></span><span class="num">${esc(c.num||"")}</span></div>
+  const notes=(r.stats&&r.stats.notes)||[];
+  const todo=(notes.find(x=>/^🎯/.test(x))||"").replace(/^🎯\s*[^：:]*[：:]\s*/,"");
+  const todoList=todo?todo.split(/[①②③④⑤]/).map(x=>x.trim().replace(/^[\s・、]+|[\s、。]+$/g,"")).filter(Boolean).slice(0,3):pts.slice(0,3);
+  const tiles=(r.stats&&r.stats.tiles)||[];
+  const sec=(title,count,inner,open)=>inner?`<details class="rsec"${open?" open":""}><summary><span>${title}</span>${count?`<em>${count}</em>`:""}</summary><div class="rin">${inner}</div></details>`:"";
+  $("report").innerHTML=`<div class="asum"><div class="k"><span>📈 今日の分析</span><span>${esc(r.date||"")}</span></div><div class="t">${esc(r.headline||"今日の分析")}</div>
+    ${todoList.length?`<div class="todo"><b>🎯 今日やること</b>${todoList.map((x,i)=>`<div class="ti"><span>${i+1}</span>${esc(x)}</div>`).join("")}</div>`:""}</div>
+  ${tiles.length?`<div class="tiles">${tiles.slice(0,4).map(t=>`<div class="tile"><div class="l">${esc(t.label||"")}</div><div class="v">${esc(t.value??"")}</div>${t.sub?`<div class="s ${/^\+|↑/.test(t.sub)?"up":(/^-|↓|−/.test(t.sub)?"down":"")}">${esc(String(t.sub).split(/[・（(]/)[0])}</div>`:""}</div>`).join("")}</div>`:""}
+  ${sec("📝 まとめを読む","",`${r.summary?`<p class="rp">${esc(r.summary)}</p>`:""}${pts.length?`<ul class="rl">${pts.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}${r.mine?`<p class="rp">${esc(r.mine)}</p>`:""}`)}
+  ${sec("📊 くわしい数字",tiles.length>4?tiles.length:"",`${tiles.length>4?`<div class="tiles">${tiles.slice(4).map(t=>`<div class="tile"><div class="l">${esc(t.label||"")}</div><div class="v">${esc(t.value??"")}</div>${t.sub?`<div class="s">${esc(t.sub)}</div>`:""}</div>`).join("")}</div>`:""}${notes.filter(x=>!/^🎯/.test(x)).length?`<ul class="rl">${notes.filter(x=>!/^🎯/.test(x)).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}${r.stats&&r.stats.period?`<p class="rp" style="color:var(--sub);font-size:12px">${esc(r.stats.period)}</p>`:""}`)}
+  ${sec("🔥 似てる人の人気投稿",comp.length,comp.map((c,i)=>`<div class="ccard"><div class="who"><span>${esc(c.who||"")} ・ <span class="plat ${esc(c.plat||"")}">${plat(c.plat)}</span></span></div>
     <div class="what">${c.url?`<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.what||"")} ↗</a>`:esc(c.what||"")}</div>
-    ${c.open?`<div class="open">🎣 冒頭：${esc(c.open)}</div>`:""}
-    ${c.why?`<div class="why">💡 なぜ伸びた：${esc(c.why)}</div>`:""}
-    ${c.idea?`<div class="idea"><b>🎬 Kahoならこう撮る：</b>${esc(c.idea)}</div>`:""}
-    ${c.idea?`<button class="add" data-cidea="${i}" ${added(i)?"disabled":""}>${added(i)?"✓ 動画企画に追加済み":"＋ 動画企画に追加"}</button>`:""}</div>`).join(""):""}
-  ${r.hooks?`<div class="ah">🎣 冒頭の取り方</div>${r.hooks.lesson?`<div class="mine" style="margin-bottom:12px">${esc(r.hooks.lesson)}</div>`:""}${(r.hooks.rules||[]).length?`<ol class="rules">${r.hooks.rules.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:""}${(r.hooks.patterns||[]).map(h=>`<div class="hk"><div class="nm">${esc(h.name||"")}</div><div class="how">${esc(h.how||"")}</div>${h.ex?`<div class="ex">${esc(h.ex)}</div>`:""}${h.kaho?`<div class="kv"><b>🎬 Kaho版：</b>${esc(h.kaho)}</div>`:""}${h.ex?`<button class="cp" data-cptext="${esc(h.ex)}">📋 英語をコピー</button>`:""}</div>`).join("")}`:""}
-  ${(r.top||[]).length?`<div class="ah">📊 Kahoの人気投稿</div>`+(r.top||[]).slice(0,5).map(t=>`<div class="ccard"><div class="who"><span class="plat ${esc(t.plat||"")}">${plat(t.plat)}</span><span class="num">${esc(t.metric||"")}</span></div><div class="what">${t.url?`<a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title||"投稿")} ↗</a>`:esc(t.title||"投稿")}</div></div>`).join(""):""}`;
+    ${c.idea?`<div class="idea"><b>🎬 Kahoなら：</b>${esc(c.idea)}</div>`:""}
+    ${c.why||c.open?`<details class="mini"><summary>なぜ伸びた？</summary>${c.open?`<div class="open">🎣 ${esc(c.open)}</div>`:""}${c.why?`<div class="why">💡 ${esc(c.why)}</div>`:""}</details>`:""}
+    ${c.idea?`<button class="add" data-cidea="${i}" ${added(i)?"disabled":""}>${added(i)?"✓ 企画に追加済み":"＋ 企画に追加"}</button>`:""}</div>`).join(""))}
+  ${r.hooks?sec("🎣 冒頭（最初の3秒）の取り方",(r.hooks.patterns||[]).length,`${r.hooks.lesson?`<p class="rp"><b>${esc(r.hooks.lesson)}</b></p>`:""}${(r.hooks.patterns||[]).map(h=>`<div class="hk"><div class="nm">${esc(h.name||"")}</div>${h.ex?`<div class="ex">${esc(h.ex)}</div>`:""}${h.kaho?`<div class="kv">🎬 ${esc(h.kaho)}</div>`:""}${h.ex?`<button class="cp" data-cptext="${esc(h.ex)}">📋 英語をコピー</button>`:""}</div>`).join("")}${(r.hooks.rules||[]).length?`<ol class="rules">${r.hooks.rules.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:""}`):""}
+  ${(r.top||[]).length?sec("🏆 Kahoの人気投稿",(r.top||[]).length,(r.top||[]).slice(0,5).map(t=>`<div class="ccard"><div class="who"><span class="plat ${esc(t.plat||"")}">${plat(t.plat)}</span><span class="num">${esc(String(t.metric||"").split("・")[0])}</span></div><div class="what">${t.url?`<a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title||"投稿")} ↗</a>`:esc(t.title||"投稿")}</div></div>`).join("")):""}`;
 }
 document.addEventListener("click",async e=>{const cp=e.target.closest("[data-cptext]");if(cp){try{await navigator.clipboard.writeText(cp.dataset.cptext);toast("コピーしました")}catch(err){toast("コピーできませんでした")}return}
   const b=e.target.closest("[data-cidea]");if(!b||!latestReport)return;const i=+b.dataset.cidea,c=(latestReport.comp||[])[i];if(!c)return;
