@@ -550,6 +550,8 @@ a{color:inherit}
   <div class="grab"></div>
   <h2 id="rfTitle">大きな目標</h2>
   <div class="etrow"><div><label for="rEmoji">絵文字</label><input id="rEmoji" maxlength="4" placeholder="🎯"></div><div style="flex:1"><label for="rTitle">目標</label><input class="big" id="rTitle" placeholder="例：TikTokフォロワー 1万人" autocomplete="off"></div></div>
+  <div class="row3"><div><label for="rCur">今の数</label><input id="rCur" type="number" inputmode="numeric" placeholder="4512"></div><div><label for="rGoal">目標の数</label><input id="rGoal" type="number" inputmode="numeric" placeholder="10000"></div><div><label for="rUnit">単位</label><input id="rUnit" placeholder="人"></div></div>
+  <p class="hint" id="rAutoHint" style="margin-top:6px"></p>
   <label for="rMonth">いつまでに</label><input id="rMonth" type="month">
   <div class="quick" id="rQuick"><button data-rq="0">今月</button><button data-rq="1">来月</button><button data-rq="3">3ヶ月後</button><button data-rq="6">半年後</button><button data-rq="x">いつか</button></div>
   <label>カテゴリ</label><div class="opts" id="rcOpts"></div>
@@ -964,7 +966,7 @@ async function loadWatch(){try{const {data:ts}=await sb.auth.getSession();if(!ts
   const os=await allRows(()=>sb.from('orders').select('platform,country,item_price_jpy,ship_charged_jpy,ship_actual_jpy,ship_est_jpy,sales_fee_jpy,payoneer_fee_jpy,duty_jpy,items(cost_jpy)').gte('ordered_on',ym+'-01').order('id'));
   let s=0,p=0;os.forEach(o=>{const x=(o.item_price_jpy||0)+(o.ship_charged_jpy||0);s+=x;p+=x-((o.items&&o.items.cost_jpy)||0)-shipOf(o)-(o.sales_fee_jpy||0)-(o.payoneer_fee_jpy||0)-(o.duty_jpy||0)});
   const {data:mc}=await sb.from('monthly_costs').select('kind,amount_jpy').eq('ym',ym.replace('-',''));(mc||[]).forEach(c=>{if(CASH_FEES.includes(c.kind))p+=c.amount_jpy||0});
-  watchLive={ym,sales:s,profit:p,sold:os.length};renderGoals()}catch(e){watchLive=null}}
+  watchLive={ym,sales:s,profit:p,sold:os.length};renderGoals();renderRoad()}catch(e){watchLive=null}}
 function liveOf(g){if(!watchLive||watchLive.ym!==monthKey()||!/時計/.test(g.label||""))return null;if(/売上/.test(g.label))return watchLive.sales;if(/利益/.test(g.label))return watchLive.profit;return null}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&db)loadWatch()});
 
@@ -1165,7 +1167,7 @@ document.addEventListener("click",async e=>{
 
 /* ---------- analysis ---------- */
 function renderReport(r){
-  if(!r)return;latestReport=r;
+  if(!r)return;latestReport=r;setTimeout(renderRoad,0);
   const comp=r.comp||[];const pts=r.points||[];
   $("tzDate").textContent=(r.date||"")+" →";
   $("tzT").textContent=r.headline||r.summary||"今日の分析が届きました";
@@ -1205,7 +1207,16 @@ const ymLabel=s=>{if(!s)return "いつか";const [y,m]=s.split("-");return `${+y
 function rPhase(m){if(m.done)return "done";if(!m.month||m.month>ymAdd(3))return "later";if(m.month<=ymNow())return "now";return "next"}
 const RPH=[["now","🔥 いま（今月まで）"],["next","🔜 次（3ヶ月以内）"],["later","🌈 その先"],["done","🏁 達成した"]];
 const rSort=(a,b)=>((a.month||"9999")<(b.month||"9999")?-1:(a.month||"9999")>(b.month||"9999")?1:0)||((a.created||0)-(b.created||0));
-function rProg(m){const s=m.steps||[];if(m.done)return 100;return s.length?Math.round(s.filter(x=>x.done).length/s.length*100):0}
+function repTile(re){const t=(latestReport&&latestReport.stats&&latestReport.stats.tiles)||[];const x=t.find(a=>re.test(a.label||""));if(!x)return null;const n=parseInt(String(x.value).replace(/[^0-9]/g,""),10);return isNaN(n)?null:n}
+function rNum(m){const n=m.num;if(!n||!(+n.goal))return null;let cur=n.cur;
+  if(n.src==="tiktok"){const g=goalItems().find(x=>/TikTok/.test(x.label||""));const v=g&&curOf(g);if(v!==""&&v!=null)cur=+v;const r=repTile(/TikTokフォロワー/);if(r!=null)cur=Math.max(+cur||0,r)}
+  if(n.src==="yt"){const r=repTile(/YouTube登録者/);if(r!=null)cur=r}
+  if(n.src==="watch_sales"&&watchLive&&watchLive.ym===monthKey())cur=watchLive.sales;
+  if(n.src==="watch_profit"&&watchLive&&watchLive.ym===monthKey())cur=watchLive.profit;
+  return {cur:(cur===""||cur==null)?null:+cur,goal:+n.goal,unit:n.unit||"",auto:!!n.src}}
+const fmtBig=(v,u)=>v==null?"?":(u==="円"&&v>=10000?(Math.round(v/1000)/10).toLocaleString()+"万":(+v).toLocaleString());
+function numText(m){const x=rNum(m);return x?`${fmtBig(x.cur,x.unit)} / ${fmtBig(x.goal,x.unit)}${esc(x.unit)}${x.auto?" 🔄":""}`:""}
+function rProg(m){if(m.done)return 100;const x=rNum(m);if(x)return x.cur==null?0:Math.max(0,Math.min(100,Math.round(x.cur/x.goal*100)));const s=m.steps||[];return s.length?Math.round(s.filter(x=>x.done).length/s.length*100):0}
 async function putR(m){
   if(local||!rcol){const i=road.findIndex(x=>x.id===m.id);if(i>=0)road[i]=m;else road.push(m);try{localStorage.setItem(RKEY,JSON.stringify(road))}catch(e){}renderRoad();return}
   const {id,...b}=m;await rcol.doc(id).set(b)}
@@ -1214,14 +1225,14 @@ function rStepRow(m,x){const linked=x.task&&tasks.some(t=>t.id===x.task&&!t.done
   return `<div class="sb ${x.done?"dn":""}"><button class="ck" data-rs="${m.id}|${x.id}" aria-label="ステップ完了">${CKSVG}</button><span>${esc(x.t)}</span>${x.done?"":(linked?`<em class="rtag">タスク中</em>`:`<button class="rtask" data-rt="${m.id}|${x.id}">→タスク</button>`)}</div>`}
 function rCard(m){const c=catOf(m.cat),p=rProg(m),s=m.steps||[],over=!m.done&&m.month&&m.month<ymNow();
   return `<div class="rm ${m.done?"done":""}" style="--cc:${c.c};--cb:${c.b}"><span class="rdot"></span>
-  <div class="rh" data-red="${m.id}"><span class="ri">${esc(m.emoji||c.e)}</span><div class="rt"><b>${esc(m.title)}</b><small class="${over?"ov":""}">${m.done?"🏁 達成！":ymLabel(m.month)+(over?"（すぎてる）":"")}${s.length?` ・ ${s.filter(x=>x.done).length}/${s.length}ステップ`:""}</small></div><b style="font-size:17px;color:${c.c}">${p}%</b></div>
+  <div class="rh" data-red="${m.id}"><span class="ri">${esc(m.emoji||c.e)}</span><div class="rt"><b>${esc(m.title)}</b><small class="${over?"ov":""}">${numText(m)?`<b style="display:inline;font-size:13px;color:var(--ink)">${numText(m)}</b> ・ `:""}${m.done?"🏁 達成！":ymLabel(m.month)+(over?"（すぎてる）":"")}${s.length?` ・ ${s.filter(x=>x.done).length}/${s.length}ステップ`:""}</small></div><b style="font-size:17px;color:${c.c}">${p}%</b></div>
   <div class="bar"><i style="width:${p}%"></i></div>
-  ${s.length?`<div class="rsteps">${s.map(x=>rStepRow(m,x)).join("")}</div>`:`<div class="rnote">ステップを足すと進み具合が出ます（タップして編集）</div>`}
+  ${s.length?`<div class="rsteps">${s.map(x=>rStepRow(m,x)).join("")}</div>`:(rNum(m)?"":`<div class="rnote">数字かステップを入れると進み具合が出ます（タップして編集）</div>`)}
   ${m.note?`<div class="rnote">💭 ${esc(m.note)}</div>`:""}</div>`}
 function monthsUntil(ym){if(!ym)return null;const [y,m]=ym.split("-").map(Number);const d=new Date();return (y-d.getFullYear())*12+(m-(d.getMonth()+1))}
 function untilLabel(n){if(n==null)return "いつか";if(n<0)return "すぎてる";if(n===0)return "今月中";const y=Math.floor(n/12),m=n%12;return "あと"+(y?y+"年":"")+(m?m+"か月":"")}
 function tlItem(m){const c=catOf(m.cat),p=rProg(m);
-  return `<div class="tlm ${m.done?"done":""}" data-red="${m.id}" style="--cc:${c.c};--cb:${c.b}"><span class="tld">${esc(m.emoji||c.e)}</span><div><b>${esc(m.title)}</b><small>${m.month?(+m.month.slice(5))+"月 ・ ":""}${m.done?"🏁 達成！":untilLabel(monthsUntil(m.month))}</small></div>${(m.steps||[]).length&&!m.done?`<em>${p}%</em>`:""}</div>`}
+  return `<div class="tlm ${m.done?"done":""}" data-red="${m.id}" style="--cc:${c.c};--cb:${c.b}"><span class="tld">${esc(m.emoji||c.e)}</span><div><b>${esc(m.title)}</b><small>${numText(m)?numText(m)+" ・ ":""}${m.month?(+m.month.slice(5))+"月 ・ ":""}${m.done?"🏁 達成！":untilLabel(monthsUntil(m.month))}</small></div>${(rNum(m)||(m.steps||[]).length)&&!m.done?`<em>${p}%</em>`:""}</div>`}
 function timelineHTML(){const dated=road.filter(m=>m.month).sort(rSort),undated=road.filter(m=>!m.month);if(!road.length)return "";
   const years=[...new Set(dated.map(m=>m.month.slice(0,4)))],n=new Date();
   return `<div class="card tline"><h3>🗺️ 人生のロードマップ</h3><div class="tl"><div class="tlnow">📍 いま ${n.getFullYear()}年${n.getMonth()+1}月</div>`
@@ -1246,7 +1257,7 @@ async function syncRoadFromTask(t,done){if(!t.rm)return;const m=road.find(x=>x.i
 function afterStep(m){if(!m.done&&(m.steps||[]).length&&m.steps.every(x=>x.done))setTimeout(()=>toast(`「${m.title}」のステップぜんぶ完了！`,{label:"🏁 達成にする",fn:()=>finishR(m)}),900)}
 async function finishR(m){await putR({...m,done:true,doneAt:Date.now()});cheer("目標達成！🏁",m.title);confetti(80)}
 function openR(m){rEditing=m||null;$("rfTitle").textContent=m?"目標を編集":"大きな目標";
-  $("rEmoji").value=m?(m.emoji||""):"";$("rTitle").value=m?m.title:"";$("rMonth").value=m?(m.month||""):ymAdd(1);$("rNote").value=m?(m.note||""):"";
+  const nm=(m&&m.num)||{};$("rCur").value=nm.cur??"";$("rGoal").value=nm.goal??"";$("rUnit").value=nm.unit||"";$("rAutoHint").textContent=nm.src?"🔄 今の数は自動で入ります（"+({tiktok:"TikTokの分析",yt:"YouTubeの分析",watch_sales:"Tick Tak",watch_profit:"Tick Tak"}[nm.src]||"自動")+"）":"";$("rEmoji").value=m?(m.emoji||""):"";$("rTitle").value=m?m.title:"";$("rMonth").value=m?(m.month||""):ymAdd(1);$("rNote").value=m?(m.note||""):"";
   rCat=m?catOf(m.cat).k:"other";rSteps=m?(m.steps||[]).map(x=>({...x})):[];rDoneF=m?!!m.done:false;$("rStepIn").value="";
   $("rDel").style.display=m?"":"none";$("rDoneBtn").style.display=m?"":"none";drawR();openBg("rSheet");if(!m)setTimeout(()=>$("rTitle").focus(),80)}
 function drawR(){
@@ -1256,7 +1267,7 @@ function drawR(){
   $("rStepN").textContent=rSteps.length?`${rSteps.filter(x=>x.done).length}/${rSteps.length}`:"小さく分けるほど進む";
   $("rDoneBtn").textContent=rDoneF?"↩︎ 達成を取り消す":"🏁 達成にする";$("rDoneBtn").classList.toggle("on",rDoneF)}
 function rForm(){const title=$("rTitle").value.trim();if(!title)return null;
-  return {...(rEditing||{}),id:rEditing?rEditing.id:newId("r"),title,emoji:$("rEmoji").value.trim(),month:$("rMonth").value||"",cat:rCat,steps:rSteps,note:$("rNote").value.trim(),done:rDoneF,doneAt:rDoneF?((rEditing&&rEditing.doneAt)||Date.now()):null,created:rEditing?(rEditing.created||Date.now()):Date.now()}}
+  return {...(rEditing||{}),id:rEditing?rEditing.id:newId("r"),title,emoji:$("rEmoji").value.trim(),month:$("rMonth").value||"",cat:rCat,steps:rSteps,note:$("rNote").value.trim(),num:(+$("rGoal").value?{...((rEditing&&rEditing.num)||{}),cur:$("rCur").value===""?"":+$("rCur").value,goal:+$("rGoal").value,unit:$("rUnit").value.trim()}:null),done:rDoneF,doneAt:rDoneF?((rEditing&&rEditing.doneAt)||Date.now()):null,created:rEditing?(rEditing.created||Date.now()):Date.now()}}
 function addRStep(){const v=$("rStepIn").value.trim();if(!v)return;rSteps.push({id:newId("s"),t:v,done:false});$("rStepIn").value="";drawR();$("rStepIn").focus()}
 $("rStepAdd").onclick=addRStep;$("rMonth").addEventListener("input",drawR);
 $("rQuick").onclick=e=>{const b=e.target.closest("[data-rq]");if(!b)return;$("rMonth").value=b.dataset.rq==="x"?"":ymAdd(+b.dataset.rq);drawR()};
