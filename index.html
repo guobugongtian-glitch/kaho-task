@@ -309,6 +309,11 @@ a{color:inherit}
 .rmini .rh{cursor:pointer}
 .rmini .ri{width:40px;height:40px;font-size:20px;background:#fff}
 .rmini .rp{font-weight:900;font-size:18px;color:var(--lav)}
+.rart{padding:12px 10px}
+.rart h3{margin:0 4px 8px;font-size:16px;font-weight:900;display:flex;justify-content:space-between;align-items:center}
+.rart h3 button{font-size:12px;font-weight:800;background:var(--soft);border-radius:99px;padding:6px 12px;color:#5b6070}
+.rart svg{width:100%;height:auto;display:block;border-radius:18px}
+.rart svg text{font-family:"M PLUS Rounded 1c",system-ui,sans-serif}
 .tline h3{margin:0 0 12px;font-size:16px;font-weight:900}
 .tl{position:relative;padding-left:28px}
 .tl:before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:4px;border-radius:4px;background:linear-gradient(#ff6b57,#8b7cf6,#2fb67f)}
@@ -1297,6 +1302,42 @@ function monthsUntil(ym){if(!ym)return null;const [y,m]=ym.split("-").map(Number
 function untilLabel(n){if(n==null)return "いつか";if(n<0)return "すぎてる";if(n===0)return "今月中";const y=Math.floor(n/12),m=n%12;return "あと"+(y?y+"年":"")+(m?m+"か月":"")}
 function tlItem(m){const c=catOf(m.cat),p=rProg(m);
   return `<div class="tlm ${m.done?"done":""}" data-red="${m.id}" style="--cc:${c.c};--cb:${c.b}"><span class="tld">${esc(m.emoji||c.e)}</span><div><b>${esc(m.title)}</b><small>${numText(m)?numText(m)+" ・ ":""}${m.month?(+m.month.slice(5))+"月 ・ ":""}${m.done?"🏁 達成！":untilLabel(monthsUntil(m.month))}</small></div>${(rNum(m)||(m.steps||[]).length)&&!m.done?`<em>${p}%</em>`:""}</div>`}
+function roadArtSVG(){
+  const ms=road.filter(m=>m.month).sort(rSort);if(!ms.length)return "";
+  const W=360,TOP=110,STEP=86,n=ms.length,H=TOP+n*STEP+60;
+  const region=m=>m.month<"2027-09"?0:(m.month<"2029-11"?1:2);
+  const R3=[{name:"茨城",e:"🌾",bg:"#e6f6dc",ink:"#3f7d2b"},{name:"青森",e:"🍎",bg:"#fde4e4",ink:"#b8333a"},{name:"オーストラリア",e:"🦘",bg:"#ffe9cf",ink:"#b35a00"}];
+  const pts=ms.map((m,i)=>({m,x:W/2+Math.sin(i*0.9)*92,y:TOP+i*STEP+30}));
+  // 地域の帯
+  let bands="";[0,1,2].forEach(r=>{const idx=pts.map((p,i)=>region(p.m)===r?i:-1).filter(i=>i>=0);if(!idx.length)return;
+    const y0=r===0?0:pts[idx[0]].y-STEP/2,y1=idx[idx.length-1]===n-1?H:pts[idx[idx.length-1]].y+STEP/2,c=R3[r];
+    bands+=`<rect x="0" y="${y0}" width="${W}" height="${y1-y0}" fill="${c.bg}"/><text x="${W-12}" y="${y0+26}" text-anchor="end" font-size="15" font-weight="900" fill="${c.ink}">${c.e} ${c.name}</text>`});
+  // 道（なめらかな線）
+  const all=[{x:W/2,y:62},...pts,{x:pts[n-1].x,y:H-20}];let d=`M${all[0].x},${all[0].y}`;
+  for(let i=1;i<all.length;i++){const a=all[i-1],b=all[i],my=(a.y+b.y)/2;d+=` C${a.x},${my} ${b.x},${my} ${b.x},${b.y}`}
+  const road1=`<path d="${d}" fill="none" stroke="#c9c2b3" stroke-width="26" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="10 10" stroke-linecap="round"/>`;
+  // 年の目印
+  let years="",lastY="";pts.forEach(p=>{const y=p.m.month.slice(0,4);if(y!==lastY){years+=`<text x="12" y="${p.y-STEP/2+22}" font-size="18" font-weight="900" fill="#454a57" opacity=".75">${y}</text>`;lastY=y}});
+  // ピン
+  const pins=pts.map((p,i)=>{const m=p.m,c=catOf(m.cat),pr=rProg(m),left=p.x>W/2,tx=left?p.x-28:p.x+28,anchor=left?"end":"start";
+    const t=String(m.title).length>13?String(m.title).slice(0,12)+"…":String(m.title);
+    return `<g data-red="${m.id}" style="cursor:pointer"><circle cx="${p.x}" cy="${p.y}" r="21" fill="#fff" stroke="${m.done?"#2fb67f":c.c}" stroke-width="4"/>
+      ${pr>0&&!m.done?`<circle cx="${p.x}" cy="${p.y}" r="21" fill="none" stroke="${c.c}" stroke-width="4" stroke-dasharray="${(132*pr/100).toFixed(1)} 132" transform="rotate(-90 ${p.x} ${p.y})" opacity=".35"/>`:""}
+      <text x="${p.x}" y="${p.y+8}" text-anchor="middle" font-size="21">${m.done?"🏁":esc(m.emoji||c.e)}</text>
+      <text x="${tx}" y="${p.y-3}" text-anchor="${anchor}" font-size="13.5" font-weight="900" fill="#1f2330">${esc(t)}</text>
+      <text x="${tx}" y="${p.y+14}" text-anchor="${anchor}" font-size="11.5" font-weight="800" fill="#6b7280">${+m.month.slice(5)}月${pr&&!m.done?" ・ "+pr+"%":""}${m.done?" ・ 達成":""}</text></g>`}).join("");
+  const now=new Date(),start=`<g><circle cx="${W/2}" cy="56" r="30" fill="#fff" stroke="#ff6b57" stroke-width="4"/><svg x="${W/2-27}" y="29" width="54" height="54" viewBox="0 0 120 120">${kahoSVG("happy").replace(/^<svg[^>]*>/,"").replace(/<\/svg>$/,"")}</svg>
+    <text x="${W/2+40}" y="52" font-size="13" font-weight="900" fill="#ff6b57">いま</text><text x="${W/2+40}" y="69" font-size="11.5" font-weight="800" fill="#6b7280">${now.getFullYear()}年${now.getMonth()+1}月</text></g>`;
+  return `<svg id="roadArt" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="人生のロードマップの絵">${bands}${years}${road1}${pins}${start}</svg>`}
+function roadArtHTML(){const svg=roadArtSVG();return svg?`<div class="card rart"><h3><span>🖼️ 絵で見るロードマップ</span><button data-artsave>画像で保存</button></h3>${svg}</div>`:""}
+async function saveArt(){const el=document.getElementById("roadArt");if(!el)return;try{
+  const xml=new XMLSerializer().serializeToString(el),vb=el.viewBox.baseVal,sc=3,cv=document.createElement("canvas");cv.width=vb.width*sc;cv.height=vb.height*sc;
+  const img=new Image();img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(xml);await img.decode();const cx=cv.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(img,0,0,cv.width,cv.height);
+  const blob=await new Promise(r=>cv.toBlob(r,"image/png"));const file=new File([blob],"kaho-roadmap.png",{type:"image/png"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Kahoのロードマップ"});return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="kaho-roadmap.png";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast("画像を保存しました")}
+  catch(e){if(e&&e.name==="AbortError")return;toast("画像にできませんでした。スクショしてね")}}
+document.addEventListener("click",e=>{if(e.target.closest("[data-artsave]"))saveArt()});
 function timelineHTML(){const dated=road.filter(m=>m.month).sort(rSort),undated=road.filter(m=>!m.month);if(!road.length)return "";
   const years=[...new Set(dated.map(m=>m.month.slice(0,4)))],n=new Date();
   return `<div class="card tline"><h3>🗺️ 人生のロードマップ</h3><div class="tl"><div class="tlnow">📍 いま ${n.getFullYear()}年${n.getMonth()+1}月</div>`
@@ -1307,7 +1348,7 @@ function renderRoad(){
   const list=road.slice().sort(rSort),done=list.filter(m=>m.done).length;
   $("rSum").textContent=list.length?`${done}/${list.length} 達成`:"";
   const nx=nextMilestone();
-  $("rTop").innerHTML=timelineHTML()+(list.length?`<div class="sec"><h2>✅ ステップ</h2><small>目標ごとのやること</small></div>`:"")+(list.length?`<div class="card rover"><div><div class="k">達成した目標</div><div class="big">${done}<small>/ ${list.length}</small></div></div><div style="flex:1;min-width:0"><div class="k">次の目的地</div><div class="nx">${nx?`${esc(nx.emoji||catOf(nx.cat).e)} ${esc(nx.title)}（${ymLabel(nx.month)}）`:"ぜんぶ達成！🎉"}</div></div></div>`:"");
+  $("rTop").innerHTML=roadArtHTML()+timelineHTML()+(list.length?`<div class="sec"><h2>✅ ステップ</h2><small>目標ごとのやること</small></div>`:"")+(list.length?`<div class="card rover"><div><div class="k">達成した目標</div><div class="big">${done}<small>/ ${list.length}</small></div></div><div style="flex:1;min-width:0"><div class="k">次の目的地</div><div class="nx">${nx?`${esc(nx.emoji||catOf(nx.cat).e)} ${esc(nx.title)}（${ymLabel(nx.month)}）`:"ぜんぶ達成！🎉"}</div></div></div>`:"");
   $("rList").innerHTML=list.length?RPH.map(([k,l])=>{const it=list.filter(m=>rPhase(m)===k);if(!it.length)return "";
     return `<div class="group">${l}<em>${it.length}</em></div><div class="rtl">${it.map(rCard).join("")}</div>`}).join("")
     :`<div class="empty"><span class="em">🗺️</span>大きな目標と、そこまでの道のりを置いておく場所です。<br>右下の＋で追加してね<br><button class="gadd" data-rseed style="margin-top:14px;max-width:280px">今のタスクと目標から例を入れる</button></div>`;
