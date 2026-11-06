@@ -1406,13 +1406,14 @@ function startVideos(){startReport();startWeeks();
 
 /* ---------- 週の記録 ---------- */
 const WKF=["views","posts","fol","save","share","pitch","reply","sales","hours"];
-let weeks={},wkOff=0,wcol=null,wkT=null;
+let weeks={},wkOff=0,wcol=null,wkT=null,mcw={};const WKAUTO=["views","posts","fol","share"];
+function wkMerged(ws){const w={...(weeks[ws]||{})},a=(mcw.weeks||{})[ws]||{};WKAUTO.forEach(k=>{if((w[k]===""||w[k]==null)&&a[k]!=null)w[k]=a[k]});return w}
 function wkStart(off){const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7)+off*7);return ymd(d)}
 function wkLabel(ws){const a=new Date(ws+"T00:00"),b=new Date(a);b.setDate(b.getDate()+6);return `${a.getMonth()+1}/${a.getDate()}（月）〜${b.getMonth()+1}/${b.getDate()}（日）`}
 function wkCalc(w){w=w||{};const n=k=>(w[k]===""||w[k]==null)?null:+w[k];const div=(a,b,m=1)=>(a==null||!b)?null:a/b*m;
   return {avg:div(n("views"),n("posts")),fol:div(n("fol"),n("views"),100),ss:(n("save")==null&&n("share")==null)?null:div((n("save")||0)+(n("share")||0),n("views"),100),rr:div(n("reply"),n("pitch"),100),reply:n("reply"),sales:n("sales"),hours:n("hours"),ph:div(n("sales"),n("hours"))}}
 const wkF={n:v=>v==null?"—":Math.round(v).toLocaleString(),p:v=>v==null?"—":(Math.round(v*100)/100)+"%",y:v=>v==null?"—":Math.round(v).toLocaleString()+"円",h:v=>v==null?"—":v+"時間"};
-function wkText(ws){const c=wkCalc(weeks[ws]);return `【週の記録】${wkLabel(ws)}
+function wkText(ws){const c=wkCalc(wkMerged(ws));return `【週の記録】${wkLabel(ws)}
 平均再生数：${wkF.n(c.avg)}
 フォロー獲得率（%）：${wkF.p(c.fol)}
 保存・シェア率（%）：${wkF.p(c.ss)}
@@ -1421,10 +1422,12 @@ function wkText(ws){const c=wkCalc(weeks[ws]);return `【週の記録】${wkLabe
 週間作業時間：${wkF.h(c.hours)}${c.ph!=null?`（時間あたり ${wkF.y(c.ph)}）`:""}`}
 function renderWeek(keepInputs){const ws=wkStart(wkOff),w=weeks[ws]||{};$("wkLbl").textContent=(wkOff===0?"今週 ":"")+wkLabel(ws);
   if(!keepInputs)WKF.forEach(k=>{$("wk_"+k).value=w[k]??""});
-  const c=wkCalc(w);const T=(l,v,s)=>`<div class="tile"><div class="l">${l}</div><div class="v">${v}</div>${s?`<div class="s">${s}</div>`:""}</div>`;
+  const a=(mcw.weeks||{})[ws]||{};WKAUTO.forEach(k=>{$("wk_"+k).placeholder=a[k]!=null?String(a[k]):""});
+  if(!$("wkMsg").textContent||/Metricool/.test($("wkMsg").textContent))$("wkMsg").textContent=Object.keys(a).length?`🔄 再生・本数・フォロワー・シェアはMetricool（TikTok）から自動。入力した数字が優先されます${mcw.updated?"（"+new Date(mcw.updated).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"numeric",minute:"2-digit"})+" 更新）":""}`:"";
+  const c=wkCalc(wkMerged(ws));const T=(l,v,s)=>`<div class="tile"><div class="l">${l}</div><div class="v">${v}</div>${s?`<div class="s">${s}</div>`:""}</div>`;
   $("wkTiles").innerHTML=T("平均再生数",wkF.n(c.avg))+T("フォロー獲得率",wkF.p(c.fol))+T("保存・シェア率",wkF.p(c.ss))+T("企業からの返信",c.reply==null?"—":c.reply+"社",c.rr!=null?"返信率 "+wkF.p(c.rr):"")+T("週間売上",wkF.y(c.sales))+T("週間作業時間",wkF.h(c.hours),c.ph!=null?"時間あたり "+wkF.y(c.ph):"");
-  const ks=Object.keys(weeks).filter(k=>WKF.some(f=>weeks[k][f]!==""&&weeks[k][f]!=null)).sort().reverse().slice(0,12);
-  $("wkHist").innerHTML=ks.length?`<div class="card wkhist"><div style="font-weight:900;font-size:14px;margin-bottom:4px">📊 これまでの週</div><div class="r h"><span>週</span><span>平均再生</span><span>フォロー率</span><span>保存・シェア率</span></div>${ks.map(k=>{const x=wkCalc(weeks[k]);const d=new Date(k+"T00:00");return `<div class="r" data-wkgo="${k}" style="cursor:pointer"><b>${d.getMonth()+1}/${d.getDate()}〜</b><span>${wkF.n(x.avg)}</span><span>${wkF.p(x.fol)}</span><span>${wkF.p(x.ss)}</span></div>`}).join("")}</div>`:""}
+  const ks=[...new Set([...Object.keys(weeks),...Object.keys(mcw.weeks||{})])].filter(k=>{const m=wkMerged(k);return WKF.some(f=>m[f]!==""&&m[f]!=null)}).sort().reverse().slice(0,12);
+  $("wkHist").innerHTML=ks.length?`<div class="card wkhist"><div style="font-weight:900;font-size:14px;margin-bottom:4px">📊 これまでの週</div><div class="r h"><span>週</span><span>平均再生</span><span>フォロー率</span><span>保存・シェア率</span></div>${ks.map(k=>{const x=wkCalc(wkMerged(k));const d=new Date(k+"T00:00");return `<div class="r" data-wkgo="${k}" style="cursor:pointer"><b>${d.getMonth()+1}/${d.getDate()}〜</b><span>${wkF.n(x.avg)}</span><span>${wkF.p(x.fol)}</span><span>${wkF.p(x.ss)}</span></div>`}).join("")}</div>`:""}
 async function saveWeek(){const ws=wkStart(wkOff);const body={...(weeks[ws]||{}),updated:Date.now()};WKF.forEach(k=>{body[k]=$("wk_"+k).value});weeks[ws]=body;renderWeek(true);
   if(local||!wcol){try{localStorage.setItem("kahoWeeksLocal",JSON.stringify(weeks))}catch(e){}$("wkMsg").textContent="この端末に保存しました";return}
   try{await wcol.doc(ws).set(body);$("wkMsg").textContent="保存しました ✓"}catch(e){$("wkMsg").textContent="保存できませんでした"}}
@@ -1433,6 +1436,7 @@ document.addEventListener("click",async e=>{const mv=e.target.closest("[data-wkm
   const go=e.target.closest("[data-wkgo]");if(go){const a=new Date(go.dataset.wkgo+"T00:00"),b=new Date(wkStart(0)+"T00:00");wkOff=Math.round((a-b)/(7*864e5));$("wkMsg").textContent="";renderWeek();window.scrollTo({top:0,behavior:"smooth"});return}
   if(e.target.closest("[data-wkcopy]")){try{await navigator.clipboard.writeText(wkText(wkStart(wkOff)));toast("記録をコピーしました")}catch(err){toast("コピーできませんでした")}}});
 function startWeeks(){if(local||!db){try{weeks=JSON.parse(localStorage.getItem("kahoWeeksLocal"))||{}}catch(e){weeks={}}renderWeek();return}
+  db.doc("reports/metricool-weeks").onSnapshot(d=>{mcw=d.exists?(d.data()||{}):{};renderWeek(true)},()=>{});
   wcol=db.collection("weeks");wcol.onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());weeks=m;renderWeek(!!wkT||document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith("wk_"))},()=>{})}
 /* ---------- roadmap ---------- */
 let road=[],rcol=null,rEditing=null,rSteps=[],rCat="other",rDoneF=false;const RKEY="kahoRoadLocal";
