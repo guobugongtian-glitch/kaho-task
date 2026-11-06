@@ -524,6 +524,15 @@ details.mini summary{font-size:12px;font-weight:800;color:var(--sub);cursor:poin
 .live{font-size:10px;background:var(--mint2);color:#167a52;border-radius:99px;padding:1px 7px;margin-left:6px;vertical-align:2px}
 .out{display:block;margin:4px auto 0;font-size:12px;color:var(--sub);font-weight:800;text-decoration:underline}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+#vseg{grid-template-columns:1fr 1fr 1fr}
+.wkh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.wkh b{font-size:15px;font-weight:900}.wkh button{width:36px;height:36px;border-radius:12px;background:var(--soft);font-size:20px;font-weight:900}
+.wkg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.wkg label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:800;color:var(--sub)}
+.wkg input{background:var(--soft);border:0;border-radius:12px;padding:11px 12px;font-size:16px;font-weight:800;color:var(--ink);width:100%;box-sizing:border-box}
+.wkmsg{font-size:12px;color:var(--sub);font-weight:700;margin-top:8px;min-height:16px}
+.wkt{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:12px}
+.wkcp{display:block;width:100%;margin-bottom:14px}
+.wkf summary{font-weight:900;font-size:14px;cursor:pointer}.wkf ul{margin:10px 0 0;padding-left:18px;font-size:13px;line-height:1.8}
+.wkhist{font-size:13px}.wkhist .r{display:grid;grid-template-columns:4.5em repeat(3,1fr);gap:6px;padding:8px 0;border-top:1px solid var(--line);align-items:center}.wkhist .r.h{font-size:11px;color:var(--sub);font-weight:800;border-top:0}.wkhist .r b{font-weight:900}
 </style>
 </head>
 <body>
@@ -581,8 +590,34 @@ details.mini summary{font-size:12px;font-weight:800;color:var(--sub);cursor:poin
 <!-- ===== 動画 ===== -->
 <section id="pVideos" style="display:none">
   <div class="ptitle">SNS<small>分析 → ネタ → 投稿</small></div>
-  <div class="seg" id="vseg"><button data-vsub="ana">📈 今日の分析</button><button data-vsub="plan">🎬 企画</button></div>
+  <div class="seg" id="vseg"><button data-vsub="ana">📈 今日の分析</button><button data-vsub="plan">🎬 企画</button><button data-vsub="week">📒 週の記録</button></div>
   <div id="vAna"><div id="ssBox"></div><div id="report"><div class="mine">毎朝AIが分析した結果がここに出ます。</div></div></div>
+  <div id="vWeek" style="display:none">
+  <div class="card wk">
+    <div class="wkh"><button data-wkmv="-1" aria-label="前の週">‹</button><b id="wkLbl"></b><button data-wkmv="1" aria-label="次の週">›</button></div>
+    <div class="wkg">
+      <label>週間総再生数<input id="wk_views" type="number" inputmode="numeric" min="0"></label>
+      <label>投稿本数<input id="wk_posts" type="number" inputmode="numeric" min="0"></label>
+      <label>動画経由の新規フォロワー<input id="wk_fol" type="number" inputmode="numeric" min="0"></label>
+      <label>保存数<input id="wk_save" type="number" inputmode="numeric" min="0"></label>
+      <label>シェア数<input id="wk_share" type="number" inputmode="numeric" min="0"></label>
+      <label>営業した企業数<input id="wk_pitch" type="number" inputmode="numeric" min="0"></label>
+      <label>返信があった企業数<input id="wk_reply" type="number" inputmode="numeric" min="0"></label>
+      <label>SNS関連の売上（円）<input id="wk_sales" type="number" inputmode="numeric" min="0"></label>
+      <label>SNSに使った時間（時間）<input id="wk_hours" type="number" inputmode="decimal" min="0" step="0.5"></label>
+    </div>
+    <div class="wkmsg" id="wkMsg"></div>
+  </div>
+  <div class="tiles wkt" id="wkTiles"></div>
+  <button class="btn dark wkcp" data-wkcopy>📋 記録をコピーする</button>
+  <details class="card wkf"><summary>計算方法</summary><ul>
+    <li>平均再生数 ＝ 週間総再生数 ÷ 投稿本数</li>
+    <li>フォロー獲得率 ＝ 動画経由の新規フォロワー数 ÷ 再生数 × 100</li>
+    <li>保存・シェア率 ＝（保存数＋シェア数）÷ 再生数 × 100</li>
+    <li>営業返信率 ＝ 返信があった企業数 ÷ 営業した企業数 × 100</li>
+    <li>時間あたり売上 ＝ SNS関連売上 ÷ SNSに使った作業時間</li></ul></details>
+  <div id="wkHist"></div>
+  </div>
   <div id="vPlan" style="display:none">
   <div id="persona"></div>
   <div class="stages" id="stages"></div>
@@ -1362,12 +1397,43 @@ function renderSubstack(){const d=ssDraft;const box=$("ssBox");if(!box)return;if
   <div class="row"><button data-sscopy>英語をコピー</button><a href="https://substack.com/notes" target="_blank" rel="noopener">Substackを開く</a></div></div>`}
 document.addEventListener("click",async e=>{if(!e.target.closest("[data-sscopy]")||!ssDraft)return;try{await navigator.clipboard.writeText(ssDraft.en);toast("コピーしました。Substackに貼ってね")}catch(err){toast("長押しでコピーしてね")}});
 function startReport(){if(local||!db)return;db.doc("reports/substack-latest").onSnapshot(d=>{ssDraft=d.exists?d.data():null;renderSubstack();renderDaily()},()=>{});db.doc("notes/persona").onSnapshot(d=>renderPersona(d.exists?d.data():null),()=>{});db.doc("reports/latest").onSnapshot(d=>{if(d.exists)renderReport(d.data())},()=>{})}
-function startVideos(){startReport();
+function startVideos(){startReport();startWeeks();
   if(local||!db){try{videos=JSON.parse(localStorage.getItem("kahoVideosLocal"))||[]}catch(e){videos=[]}renderV();return}
   vcol=db.collection("videos");
   vcol.onSnapshot(snap=>{videos=snap.docs.map(d=>({id:d.id,...d.data()}));renderV();if(latestReport)renderReport(latestReport)},()=>{});
 }
 
+
+/* ---------- 週の記録 ---------- */
+const WKF=["views","posts","fol","save","share","pitch","reply","sales","hours"];
+let weeks={},wkOff=0,wcol=null,wkT=null;
+function wkStart(off){const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7)+off*7);return ymd(d)}
+function wkLabel(ws){const a=new Date(ws+"T00:00"),b=new Date(a);b.setDate(b.getDate()+6);return `${a.getMonth()+1}/${a.getDate()}（月）〜${b.getMonth()+1}/${b.getDate()}（日）`}
+function wkCalc(w){w=w||{};const n=k=>(w[k]===""||w[k]==null)?null:+w[k];const div=(a,b,m=1)=>(a==null||!b)?null:a/b*m;
+  return {avg:div(n("views"),n("posts")),fol:div(n("fol"),n("views"),100),ss:(n("save")==null&&n("share")==null)?null:div((n("save")||0)+(n("share")||0),n("views"),100),rr:div(n("reply"),n("pitch"),100),reply:n("reply"),sales:n("sales"),hours:n("hours"),ph:div(n("sales"),n("hours"))}}
+const wkF={n:v=>v==null?"—":Math.round(v).toLocaleString(),p:v=>v==null?"—":(Math.round(v*100)/100)+"%",y:v=>v==null?"—":Math.round(v).toLocaleString()+"円",h:v=>v==null?"—":v+"時間"};
+function wkText(ws){const c=wkCalc(weeks[ws]);return `【週の記録】${wkLabel(ws)}
+平均再生数：${wkF.n(c.avg)}
+フォロー獲得率（%）：${wkF.p(c.fol)}
+保存・シェア率（%）：${wkF.p(c.ss)}
+企業からの返信数：${c.reply==null?"—":c.reply+"社"}${c.rr!=null?`（返信率 ${wkF.p(c.rr)}）`:""}
+週間売上（円）：${wkF.y(c.sales)}
+週間作業時間：${wkF.h(c.hours)}${c.ph!=null?`（時間あたり ${wkF.y(c.ph)}）`:""}`}
+function renderWeek(keepInputs){const ws=wkStart(wkOff),w=weeks[ws]||{};$("wkLbl").textContent=(wkOff===0?"今週 ":"")+wkLabel(ws);
+  if(!keepInputs)WKF.forEach(k=>{$("wk_"+k).value=w[k]??""});
+  const c=wkCalc(w);const T=(l,v,s)=>`<div class="tile"><div class="l">${l}</div><div class="v">${v}</div>${s?`<div class="s">${s}</div>`:""}</div>`;
+  $("wkTiles").innerHTML=T("平均再生数",wkF.n(c.avg))+T("フォロー獲得率",wkF.p(c.fol))+T("保存・シェア率",wkF.p(c.ss))+T("企業からの返信",c.reply==null?"—":c.reply+"社",c.rr!=null?"返信率 "+wkF.p(c.rr):"")+T("週間売上",wkF.y(c.sales))+T("週間作業時間",wkF.h(c.hours),c.ph!=null?"時間あたり "+wkF.y(c.ph):"");
+  const ks=Object.keys(weeks).filter(k=>WKF.some(f=>weeks[k][f]!==""&&weeks[k][f]!=null)).sort().reverse().slice(0,12);
+  $("wkHist").innerHTML=ks.length?`<div class="card wkhist"><div style="font-weight:900;font-size:14px;margin-bottom:4px">📊 これまでの週</div><div class="r h"><span>週</span><span>平均再生</span><span>フォロー率</span><span>保存・シェア率</span></div>${ks.map(k=>{const x=wkCalc(weeks[k]);const d=new Date(k+"T00:00");return `<div class="r" data-wkgo="${k}" style="cursor:pointer"><b>${d.getMonth()+1}/${d.getDate()}〜</b><span>${wkF.n(x.avg)}</span><span>${wkF.p(x.fol)}</span><span>${wkF.p(x.ss)}</span></div>`}).join("")}</div>`:""}
+async function saveWeek(){const ws=wkStart(wkOff);const body={...(weeks[ws]||{}),updated:Date.now()};WKF.forEach(k=>{body[k]=$("wk_"+k).value});weeks[ws]=body;renderWeek(true);
+  if(local||!wcol){try{localStorage.setItem("kahoWeeksLocal",JSON.stringify(weeks))}catch(e){}$("wkMsg").textContent="この端末に保存しました";return}
+  try{await wcol.doc(ws).set(body);$("wkMsg").textContent="保存しました ✓"}catch(e){$("wkMsg").textContent="保存できませんでした"}}
+WKF.forEach(k=>$("wk_"+k).addEventListener("input",()=>{$("wkMsg").textContent="入力中…";const ws=wkStart(wkOff);weeks[ws]={...(weeks[ws]||{})};WKF.forEach(f=>weeks[ws][f]=$("wk_"+f).value);renderWeek(true);clearTimeout(wkT);wkT=setTimeout(saveWeek,700)}));
+document.addEventListener("click",async e=>{const mv=e.target.closest("[data-wkmv]");if(mv){if(wkT){clearTimeout(wkT);wkT=null;await saveWeek()}wkOff=Math.min(0,wkOff+(+mv.dataset.wkmv));$("wkMsg").textContent="";renderWeek();return}
+  const go=e.target.closest("[data-wkgo]");if(go){const a=new Date(go.dataset.wkgo+"T00:00"),b=new Date(wkStart(0)+"T00:00");wkOff=Math.round((a-b)/(7*864e5));$("wkMsg").textContent="";renderWeek();window.scrollTo({top:0,behavior:"smooth"});return}
+  if(e.target.closest("[data-wkcopy]")){try{await navigator.clipboard.writeText(wkText(wkStart(wkOff)));toast("記録をコピーしました")}catch(err){toast("コピーできませんでした")}}});
+function startWeeks(){if(local||!db){try{weeks=JSON.parse(localStorage.getItem("kahoWeeksLocal"))||{}}catch(e){weeks={}}renderWeek();return}
+  wcol=db.collection("weeks");wcol.onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());weeks=m;renderWeek(!!wkT||document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith("wk_"))},()=>{})}
 /* ---------- roadmap ---------- */
 let road=[],rcol=null,rEditing=null,rSteps=[],rCat="other",rDoneF=false;const RKEY="kahoRoadLocal";
 const ymNow=()=>today().slice(0,7);
@@ -1544,7 +1610,7 @@ $("logout").onclick=async()=>{await kb.auth.signOut();location.reload()};
 /* ---------- tabs (hash routing) ---------- */
 const TABS={today:"pToday",tasks:"pTasks",videos:"pVideos",road:"pRoad",me:"pMe"};
 let vsub="ana";
-function showVsub(k){vsub=k;$("vAna").style.display=k==="ana"?"":"none";$("vPlan").style.display=k==="plan"?"":"none";document.querySelectorAll("#vseg [data-vsub]").forEach(b=>b.classList.toggle("on",b.dataset.vsub===k));$("add").style.display=(tab==="videos"&&k==="ana")?"none":$("add").style.display;if(k==="ana")markAna();else renderV();if(tab==="videos")$("add").style.display=k==="plan"?"":"none"}
+function showVsub(k){vsub=k;$("vAna").style.display=k==="ana"?"":"none";$("vPlan").style.display=k==="plan"?"":"none";$("vWeek").style.display=k==="week"?"":"none";if(k==="week")renderWeek();document.querySelectorAll("#vseg [data-vsub]").forEach(b=>b.classList.toggle("on",b.dataset.vsub===k));$("add").style.display=(tab==="videos"&&k==="ana")?"none":$("add").style.display;if(k==="ana")markAna();else renderV();if(tab==="videos")$("add").style.display=k==="plan"?"":"none"}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-vsub]");if(b)showVsub(b.dataset.vsub)});
 function markAna(){const i=goalItems().findIndex(g=>g.auto==="ana");if(i>=0)bumpGoal(i,true)}
 function showTab(k,noHash){if(k==="analysis"){k="videos";vsub="ana"}if(k==="plan"){k="videos";vsub="plan"}if(!TABS[k])k="today";tab=k;
